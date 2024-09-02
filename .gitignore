@@ -1,0 +1,7 @@
+./vscode
+./bin
+./build
+*.key
+*.pub
+*.pem
+config.yaml
