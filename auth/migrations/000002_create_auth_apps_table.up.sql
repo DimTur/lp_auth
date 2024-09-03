@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS auth_apps
+(
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    secret TEXT NOT NULL UNIQUE
+)

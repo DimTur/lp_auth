@@ -4,5 +4,6 @@
 *.key
 *.pub
 *.pem
-config.yaml
+local.yaml
 commands.md
+*.db

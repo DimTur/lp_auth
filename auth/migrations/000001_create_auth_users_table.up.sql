@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS auth_users
+(
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    pass_hash BLOB NOT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_email ON auth_users (email);
