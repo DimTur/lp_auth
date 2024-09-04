@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 
-	ssov1 "github.com/DimTur/learning_platform/auth/gen/go/sso"
 	"github.com/DimTur/learning_platform/auth/internal/services/auth"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
+	ssov1 "github.com/DimTur/learning_platform/auth/pkg/server/grpc/sso"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type Auth interface {
+type AuthHandlers interface {
 	Login(
 		ctx context.Context,
 		email string,
@@ -29,14 +29,14 @@ type Auth interface {
 
 type serverAPI struct {
 	ssov1.UnimplementedAuthServer
-	auth Auth
+	auth AuthHandlers
 }
 
-func Register(gRPC *grpc.Server, auth Auth) {
+func Register(gRPC *grpc.Server, auth AuthHandlers) {
 	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
 }
 
-func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
+func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginUserRequest) (*ssov1.LoginUserResponse, error) {
 	if err := validateLogin(req); err != nil {
 		return nil, err
 	}
@@ -50,12 +50,12 @@ func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginRequest) (*ssov1.
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	return &ssov1.LoginResponse{
-		Token: token,
+	return &ssov1.LoginUserResponse{
+		AccessToken: token,
 	}, nil
 }
 
-func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
+func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterUserRequest) (*ssov1.RegisterUserResponse, error) {
 	if err := validateRegister(req); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterRequest) (*
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	return &ssov1.RegisterResponse{
+	return &ssov1.RegisterUserResponse{
 		UserId: userID,
 	}, nil
 }
@@ -93,7 +93,7 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ss
 	}, nil
 }
 
-func validateLogin(req *ssov1.LoginRequest) error {
+func validateLogin(req *ssov1.LoginUserRequest) error {
 	// TODO: use for validation special package
 	if req.GetEmail() == "" {
 		return status.Error(codes.InvalidArgument, "email is requered")
@@ -110,7 +110,7 @@ func validateLogin(req *ssov1.LoginRequest) error {
 	return nil
 }
 
-func validateRegister(req *ssov1.RegisterRequest) error {
+func validateRegister(req *ssov1.RegisterUserRequest) error {
 	// TODO: use for validation special package
 	if req.GetEmail() == "" {
 		return status.Error(codes.InvalidArgument, "email is requered")

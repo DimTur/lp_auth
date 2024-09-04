@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/DimTur/learning_platform/auth/internal/domain/models"
-	"github.com/DimTur/learning_platform/auth/internal/lib/jwt"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
+	"github.com/DimTur/learning_platform/auth/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
