@@ -53,8 +53,8 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 }
 
 // User returns user by email.
-func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
-	const op = "storage.sqlite.User"
+func (s *Storage) FindUserByEmail(ctx context.Context, email string) (models.User, error) {
+	const op = "storage.sqlite.FindUserByEmail"
 
 	stmt, err := s.db.Prepare("SELECT id, email, pass_hash FROM auth_users WHERE email = ?")
 	if err != nil {
@@ -121,4 +121,8 @@ func (s *Storage) App(ctx context.Context, appID string) (models.App, error) {
 	}
 
 	return app, nil
+}
+
+func (s *Storage) AddApp(ctx context.Context, name string, secret string) (string, error) {
+	return "", nil
 }

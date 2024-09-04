@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Auth struct {
+type AuthHandlers struct {
 	log         *slog.Logger
 	usrSaver    UserSaver
 	usrProvider UserProvider
@@ -30,12 +30,17 @@ type UserSaver interface {
 }
 
 type UserProvider interface {
-	User(ctx context.Context, email string) (models.User, error)
+	FindUserByEmail(ctx context.Context, email string) (models.User, error)
 	IsAdmin(ctx context.Context, userID string) (bool, error)
 }
 
 type AppProvider interface {
 	App(ctx context.Context, appID string) (models.App, error)
+	AddApp(
+		ctx context.Context,
+		name string,
+		secret string,
+	) (appID string, err error)
 }
 
 var (
@@ -51,8 +56,8 @@ func New(
 	userProvider UserProvider,
 	appProvider AppProvider,
 	tolenTTL time.Duration,
-) *Auth {
-	return &Auth{
+) *AuthHandlers {
+	return &AuthHandlers{
 		log:         log,
 		usrSaver:    userSaver,
 		usrProvider: userProvider,
@@ -65,13 +70,13 @@ func New(
 //
 // If user exists, but password is incorrect, returns error.
 // If user doesn't exist, returns error.
-func (a *Auth) Login(
+func (a *AuthHandlers) LoginUser(
 	ctx context.Context,
 	email string,
 	password string,
 	appID string,
 ) (string, error) {
-	const op = "auth.Login"
+	const op = "auth.LoginUser"
 
 	log := a.log.With(
 		slog.String("op", op),
@@ -80,7 +85,7 @@ func (a *Auth) Login(
 
 	log.Info("attemting to login user")
 
-	user, err := a.usrProvider.User(ctx, email)
+	user, err := a.usrProvider.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			a.log.Warn("user not found", slog.String("err", err.Error()))
@@ -115,8 +120,8 @@ func (a *Auth) Login(
 // RegisterNewUser registers new user in the system and returns user ID.
 //
 // If user with given username already exists, returns error.
-func (a *Auth) RegisterNewUser(ctx context.Context, email string, password string) (string, error) {
-	const op = "auth.RegisterNewUser"
+func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password string) (string, error) {
+	const op = "auth.RegisterUser"
 
 	log := a.log.With(
 		slog.String("op", op),
@@ -145,8 +150,12 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, password strin
 	return id, nil
 }
 
+func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+	return "", nil
+}
+
 // IsAdmin checks if user is admin.
-func (a *Auth) IsAdmin(ctx context.Context, userID string) (bool, error) {
+func (a *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error) {
 	const op = "auth.IsAdmin"
 
 	log := a.log.With(
@@ -169,4 +178,8 @@ func (a *Auth) IsAdmin(ctx context.Context, userID string) (bool, error) {
 	log.Info("checked if user is admin", slog.Bool("is_admin", isAdmin))
 
 	return isAdmin, nil
+}
+
+func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (string, error) {
+	return "", nil
 }

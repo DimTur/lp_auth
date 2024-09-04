@@ -13,35 +13,42 @@ import (
 )
 
 type AuthHandlers interface {
-	Login(
+	LoginUser(
 		ctx context.Context,
 		email string,
 		password string,
 		appID string,
 	) (token string, err error)
-	RegisterNewUser(
+	RegisterUser(
 		ctx context.Context,
 		email string,
 		password string,
 	) (userID string, err error)
+	RefreshToken(ctx context.Context, refreshToken string) (accessToken string, err error)
 	IsAdmin(ctx context.Context, userID string) (bool, error)
+	AddApp(
+		ctx context.Context,
+		name string,
+		secret string,
+	) (appID string, err error)
 }
 
 type serverAPI struct {
-	ssov1.UnimplementedAuthServer
 	auth AuthHandlers
+
+	ssov1.UnimplementedAuthServer
 }
 
 func Register(gRPC *grpc.Server, auth AuthHandlers) {
 	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
 }
 
-func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginUserRequest) (*ssov1.LoginUserResponse, error) {
+func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) (*ssov1.LoginUserResponse, error) {
 	if err := validateLogin(req); err != nil {
 		return nil, err
 	}
 
-	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
+	token, err := s.auth.LoginUser(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
@@ -55,12 +62,12 @@ func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginUserRequest) (*ss
 	}, nil
 }
 
-func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterUserRequest) (*ssov1.RegisterUserResponse, error) {
+func (s *serverAPI) RegisterUser(ctx context.Context, req *ssov1.RegisterUserRequest) (*ssov1.RegisterUserResponse, error) {
 	if err := validateRegister(req); err != nil {
 		return nil, err
 	}
 
-	userID, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
+	userID, err := s.auth.RegisterUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
 		if errors.Is(err, auth.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
@@ -72,6 +79,10 @@ func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterUserRequest
 	return &ssov1.RegisterUserResponse{
 		UserId: userID,
 	}, nil
+}
+
+func (s *serverAPI) RefreshToken(ctx context.Context, req *ssov1.RefreshTokenRequest) (*ssov1.RefreshTokenResponse, error) {
+	return &ssov1.RefreshTokenResponse{}, nil
 }
 
 func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
@@ -91,6 +102,10 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ss
 	return &ssov1.IsAdminResponse{
 		IsAdmin: isAdmin,
 	}, nil
+}
+
+func (s *serverAPI) AddApp(ctx context.Context, req *ssov1.AddAppRequest) (*ssov1.AddAppResponse, error) {
+	return &ssov1.AddAppResponse{}, nil
 }
 
 func validateLogin(req *ssov1.LoginUserRequest) error {
