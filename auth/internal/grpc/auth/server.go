@@ -6,6 +6,7 @@ import (
 
 	"github.com/DimTur/learning_platform/auth/internal/services/auth"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
+	"github.com/DimTur/learning_platform/auth/internal/utils/validator"
 	ssov1 "github.com/DimTur/learning_platform/auth/pkg/server/grpc/sso"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -44,7 +45,7 @@ func Register(gRPC *grpc.Server, auth AuthHandlers) {
 }
 
 func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) (*ssov1.LoginUserResponse, error) {
-	if err := validateLogin(req); err != nil {
+	if err := validator.ValidateLogin(req); err != nil {
 		return nil, err
 	}
 
@@ -63,7 +64,7 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 }
 
 func (s *serverAPI) RegisterUser(ctx context.Context, req *ssov1.RegisterUserRequest) (*ssov1.RegisterUserResponse, error) {
-	if err := validateRegister(req); err != nil {
+	if err := validator.ValidateRegister(req); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +87,7 @@ func (s *serverAPI) RefreshToken(ctx context.Context, req *ssov1.RefreshTokenReq
 }
 
 func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
-	if err := validateIsAdmin(req); err != nil {
+	if err := validator.ValidateIsAdmin(req); err != nil {
 		return nil, err
 	}
 
@@ -106,43 +107,4 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ss
 
 func (s *serverAPI) AddApp(ctx context.Context, req *ssov1.AddAppRequest) (*ssov1.AddAppResponse, error) {
 	return &ssov1.AddAppResponse{}, nil
-}
-
-func validateLogin(req *ssov1.LoginUserRequest) error {
-	// TODO: use for validation special package
-	if req.GetEmail() == "" {
-		return status.Error(codes.InvalidArgument, "email is requered")
-	}
-
-	if req.GetPassword() == "" {
-		return status.Error(codes.InvalidArgument, "password is requered")
-	}
-
-	if req.GetAppId() == "" {
-		return status.Error(codes.InvalidArgument, "app_id is requered")
-	}
-
-	return nil
-}
-
-func validateRegister(req *ssov1.RegisterUserRequest) error {
-	// TODO: use for validation special package
-	if req.GetEmail() == "" {
-		return status.Error(codes.InvalidArgument, "email is requered")
-	}
-
-	if req.GetPassword() == "" {
-		return status.Error(codes.InvalidArgument, "password is requered")
-	}
-
-	return nil
-}
-
-func validateIsAdmin(req *ssov1.IsAdminRequest) error {
-	// TODO: use for validation special package
-	if req.GetUserId() == "" {
-		return status.Error(codes.InvalidArgument, "userID is requered")
-	}
-
-	return nil
 }
