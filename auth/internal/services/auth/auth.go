@@ -5,20 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/DimTur/learning_platform/auth/internal/domain/models"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
+	"github.com/DimTur/learning_platform/auth/pkg/crypto"
 	"github.com/DimTur/learning_platform/auth/pkg/jwt"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthHandlers struct {
-	log         *slog.Logger
-	usrSaver    UserSaver
-	usrProvider UserProvider
-	appProvider AppProvider
-	tokenTTL    time.Duration
+	log            *slog.Logger
+	usrSaver       UserSaver
+	usrProvider    UserProvider
+	appProvider    AppProvider
+	passwordHasher crypto.PasswordHasher
+	jwtManager     *jwt.JWTManager
 }
 
 type UserSaver interface {
@@ -35,7 +35,7 @@ type UserProvider interface {
 }
 
 type AppProvider interface {
-	App(ctx context.Context, appID string) (models.App, error)
+	FindAppByID(ctx context.Context, appID string) (models.App, error)
 	AddApp(
 		ctx context.Context,
 		name string,
@@ -55,14 +55,16 @@ func New(
 	userSaver UserSaver,
 	userProvider UserProvider,
 	appProvider AppProvider,
-	tolenTTL time.Duration,
+	passwordHasher crypto.PasswordHasher,
+	jwtManager *jwt.JWTManager,
 ) *AuthHandlers {
 	return &AuthHandlers{
-		log:         log,
-		usrSaver:    userSaver,
-		usrProvider: userProvider,
-		appProvider: appProvider,
-		tokenTTL:    tolenTTL,
+		log:            log,
+		usrSaver:       userSaver,
+		usrProvider:    userProvider,
+		appProvider:    appProvider,
+		passwordHasher: passwordHasher,
+		jwtManager:     jwtManager,
 	}
 }
 
@@ -96,23 +98,29 @@ func (a *AuthHandlers) LoginUser(
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+	if !a.passwordHasher.ComparePassword(password, user.PassHash) {
 		a.log.Info("invalid credentials", slog.String("err", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	app, err := a.appProvider.App(ctx, appID)
+	app, err := a.appProvider.FindAppByID(ctx, appID)
 	if err != nil {
+		if errors.Is(err, storage.ErrAppNotFound) {
+			a.log.Warn("app not found", slog.String("err", err.Error()))
+			return "", fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+		}
+
+		a.log.Error("failed to get app", slog.String("err", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("user logged in successfully")
-
-	token, err := jwt.NewToken(user, app, a.tokenTTL)
+	token, err := a.jwtManager.IssueAccessToken(user.Email, app.ID)
 	if err != nil {
 		a.log.Info("failed to generate token", slog.String("err", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
+
+	log.Info("user logged in successfully")
 
 	return token, nil
 }
@@ -130,7 +138,7 @@ func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password 
 
 	log.Info("registering user")
 
-	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	passHash, err := a.passwordHasher.HashPassword(password)
 	if err != nil {
 		log.Error("failed to generate password hash", slog.String("err", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)

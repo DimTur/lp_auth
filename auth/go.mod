@@ -3,12 +3,19 @@ module github.com/DimTur/learning_platform/auth
 go 1.23.0
 
 require (
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
 )
 
-require github.com/stretchr/testify v1.8.4 // indirect
+require (
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/kr/pretty v0.1.0 // indirect
+	github.com/spf13/cobra v1.8.1 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+)
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect

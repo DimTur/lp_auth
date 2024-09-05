@@ -12,24 +12,28 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
-type Storage struct {
+type SQLLiteStorage struct {
 	db *sql.DB
 }
 
 // New creates a new instance of the SQLite storage
-func New(storagePath string) (*Storage, error) {
+func New(storagePath string) (SQLLiteStorage, error) {
 	const op = "storage.sqlite.New"
 
 	db, err := sql.Open("sqlite3", storagePath)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return SQLLiteStorage{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &Storage{db: db}, nil
+	return SQLLiteStorage{db: db}, nil
+}
+
+func (s *SQLLiteStorage) Close() error {
+	return s.db.Close()
 }
 
 // SaveUser saves user to db.
-func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (string, error) {
+func (s *SQLLiteStorage) SaveUser(ctx context.Context, email string, passHash []byte) (string, error) {
 	const op = "storage.sqlite.SaveUser"
 
 	userID := uuid.New().String()
@@ -53,7 +57,7 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 }
 
 // User returns user by email.
-func (s *Storage) FindUserByEmail(ctx context.Context, email string) (models.User, error) {
+func (s *SQLLiteStorage) FindUserByEmail(ctx context.Context, email string) (models.User, error) {
 	const op = "storage.sqlite.FindUserByEmail"
 
 	stmt, err := s.db.Prepare("SELECT id, email, pass_hash FROM auth_users WHERE email = ?")
@@ -77,7 +81,7 @@ func (s *Storage) FindUserByEmail(ctx context.Context, email string) (models.Use
 }
 
 // IsAdmin checks if user is admin.
-func (s *Storage) IsAdmin(ctx context.Context, userID string) (bool, error) {
+func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID string) (bool, error) {
 	const op = "storage.sqlite.IsAdmin"
 
 	stmt, err := s.db.Prepare("SELECT is_admin FROM auth_users WHERE id = ?")
@@ -100,7 +104,7 @@ func (s *Storage) IsAdmin(ctx context.Context, userID string) (bool, error) {
 	return isAdmin, nil
 }
 
-func (s *Storage) App(ctx context.Context, appID string) (models.App, error) {
+func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID string) (models.App, error) {
 	const op = "storage.sqlite.App"
 
 	stmt, err := s.db.Prepare("SELECT id, name, secret FROM auth_app WHERE id = ?")
@@ -123,6 +127,6 @@ func (s *Storage) App(ctx context.Context, appID string) (models.App, error) {
 	return app, nil
 }
 
-func (s *Storage) AddApp(ctx context.Context, name string, secret string) (string, error) {
+func (s *SQLLiteStorage) AddApp(ctx context.Context, name string, secret string) (string, error) {
 	return "", nil
 }

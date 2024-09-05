@@ -40,7 +40,7 @@ type serverAPI struct {
 	ssov1.UnimplementedAuthServer
 }
 
-func Register(gRPC *grpc.Server, auth AuthHandlers) {
+func RegisterAuthServiceServer(gRPC *grpc.Server, auth AuthHandlers) {
 	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
 }
 
