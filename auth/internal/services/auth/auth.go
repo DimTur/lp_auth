@@ -5,21 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/DimTur/learning_platform/auth/internal/domain/models"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
 	"github.com/DimTur/learning_platform/auth/pkg/crypto"
-	"github.com/DimTur/learning_platform/auth/pkg/jwt"
+	ssov1 "github.com/DimTur/learning_platform/auth/pkg/server/grpc/sso"
+	"github.com/golang-jwt/jwt/v5"
 )
-
-type AuthHandlers struct {
-	log            *slog.Logger
-	usrSaver       UserSaver
-	usrProvider    UserProvider
-	appProvider    AppProvider
-	passwordHasher crypto.PasswordHasher
-	jwtManager     *jwt.JWTManager
-}
 
 type UserSaver interface {
 	SaveUser(
@@ -34,6 +27,12 @@ type UserProvider interface {
 	IsAdmin(ctx context.Context, userID int64) (bool, error)
 }
 
+type TokenProvider interface {
+	SaveRefreshToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error
+	DeleteRefreshToken(ctx context.Context, token string) error
+	FindRefreshToken(ctx context.Context, userID int64) (models.RefreshToken, error)
+}
+
 type AppProvider interface {
 	FindAppByID(ctx context.Context, appID int64) (models.App, error)
 	AddApp(
@@ -43,11 +42,31 @@ type AppProvider interface {
 	) (appID int64, err error)
 }
 
+type JWTManager interface {
+	IssueAccessToken(userID, appID int64) (string, error)
+	IssueRefreshToken(userID, appID int64) (string, error)
+	VerifyToken(tokenString string) (*jwt.Token, error)
+	GetRefreshExpiresIn() time.Duration
+}
+
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidAppID       = errors.New("invalid app id")
 	ErrUserExists         = errors.New("user already exists")
+	ErrAppExists          = errors.New("app already exists")
+	ErrIvalidUserID       = errors.New("invalid user id")
+	ErrIvalidRefreshToken = errors.New("invalid refresh token")
 )
+
+type AuthHandlers struct {
+	log            *slog.Logger
+	usrSaver       UserSaver
+	usrProvider    UserProvider
+	appProvider    AppProvider
+	tokenProvider  TokenProvider
+	passwordHasher crypto.PasswordHasher
+	jwtManager     JWTManager
+}
 
 // New returns a new instance of the Auth service.
 func New(
@@ -55,14 +74,16 @@ func New(
 	userSaver UserSaver,
 	userProvider UserProvider,
 	appProvider AppProvider,
+	tokenProvider TokenProvider,
 	passwordHasher crypto.PasswordHasher,
-	jwtManager *jwt.JWTManager,
+	jwtManager JWTManager,
 ) *AuthHandlers {
 	return &AuthHandlers{
 		log:            log,
 		usrSaver:       userSaver,
 		usrProvider:    userProvider,
 		appProvider:    appProvider,
+		tokenProvider:  tokenProvider,
 		passwordHasher: passwordHasher,
 		jwtManager:     jwtManager,
 	}
@@ -77,7 +98,7 @@ func (a *AuthHandlers) LoginUser(
 	email string,
 	password string,
 	appID int64,
-) (string, error) {
+) (ssov1.LoginUserResponse, error) {
 	const op = "auth.LoginUser"
 
 	log := a.log.With(
@@ -91,38 +112,75 @@ func (a *AuthHandlers) LoginUser(
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			a.log.Warn("user not found", slog.String("err", err.Error()))
-			return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
 
 		a.log.Error("failed to get user", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	if !a.passwordHasher.ComparePassword(password, user.PassHash) {
 		a.log.Info("invalid credentials", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
 	app, err := a.appProvider.FindAppByID(ctx, appID)
 	if err != nil {
 		if errors.Is(err, storage.ErrAppNotFound) {
 			a.log.Warn("app not found", slog.String("err", err.Error()))
-			return "", fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
 		}
 
 		a.log.Error("failed to get app", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	token, err := a.jwtManager.IssueAccessToken(user.ID, app.ID)
+	// Checks refresh token
+	existingRefreshToken, err := a.tokenProvider.FindRefreshToken(ctx, user.ID)
 	if err != nil {
-		a.log.Info("failed to generate token", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		if errors.Is(err, storage.ErrTokenNotFound) {
+			a.log.Warn("refresh token not found", slog.String("err", err.Error()))
+			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrIvalidUserID)
+		}
+
+		a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Delete refresh token
+	if existingRefreshToken.Token != "" {
+		err = a.tokenProvider.DeleteRefreshToken(ctx, existingRefreshToken.Token)
+		if err != nil {
+			if errors.Is(err, storage.ErrTokenNotFound) {
+				a.log.Warn("refresh token not found", slog.String("err", err.Error()))
+				return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrIvalidRefreshToken)
+			}
+
+			a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
+			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	// Generate new acccess token
+	accessToken, err := a.jwtManager.IssueAccessToken(user.ID, app.ID)
+	if err != nil {
+		a.log.Info("failed to generate access token", slog.String("err", err.Error()))
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Generate new refresh token
+	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID, app.ID)
+	if err != nil {
+		a.log.Info("failed to generate refresh token", slog.String("err", err.Error()))
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Info("user logged in successfully")
 
-	return token, nil
+	return ssov1.LoginUserResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 // RegisterNewUser registers new user in the system and returns user ID.
@@ -159,7 +217,46 @@ func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password 
 }
 
 func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
-	return "", nil
+	const op = "auth.RefreshToken"
+
+	// TODO: find user by refresh token
+	log := a.log.With(
+		slog.String("op", op),
+		// slog.String("user_id", userIDByToken),
+	)
+
+	log.Info("changing access token")
+
+	token, err := a.jwtManager.VerifyToken(refreshToken)
+	if err != nil {
+		log.Error("token verification failed: %v", slog.String("err", err.Error()))
+		return "", nil
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid || claims["type"] != "refresh" {
+		log.Error("Invalid token claims or type", slog.String("err", err.Error()))
+		return "", nil
+	}
+
+	userID, ok := claims["sub"].(int64)
+	if !ok {
+		log.Error("invalid userID claim: %v", claims["sub"])
+		return "", nil
+	}
+
+	appID, ok := claims["app_id"].(int64)
+	if !ok {
+		log.Error("invalid appID claim: %v", claims["app_id"])
+		return "", nil
+	}
+
+	accessToken, err := a.jwtManager.IssueAccessToken(userID, appID)
+	if err != nil {
+		return "gen.PostRefresh500JSONResponse{}", err
+	}
+
+	return accessToken, nil
 }
 
 // IsAdmin checks if user is admin.
@@ -189,5 +286,25 @@ func (a *AuthHandlers) IsAdmin(ctx context.Context, userID int64) (bool, error) 
 }
 
 func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (int64, error) {
-	return 0, nil
+	const op = "auth.RegisterUser"
+
+	log := a.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	log.Info("registering app")
+
+	id, err := a.appProvider.AddApp(ctx, name, secret)
+	if err != nil {
+		if errors.Is(err, storage.ErrAppExists) {
+			a.log.Warn("app already exists", slog.String("err", err.Error()))
+			return 0, fmt.Errorf("%s: %w", op, ErrAppExists)
+		}
+
+		log.Error("failed to save app", slog.String("err", err.Error()))
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return id, nil
 }
