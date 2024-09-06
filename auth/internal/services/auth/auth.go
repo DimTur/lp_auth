@@ -120,7 +120,7 @@ func (a *AuthHandlers) LoginUser(
 	}
 
 	if !a.passwordHasher.ComparePassword(password, user.PassHash) {
-		a.log.Info("invalid credentials", slog.String("err", err.Error()))
+		a.log.Info("invalid credentials")
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
@@ -230,30 +230,30 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 	token, err := a.jwtManager.VerifyToken(refreshToken)
 	if err != nil {
 		log.Error("token verification failed: %v", slog.String("err", err.Error()))
-		return "", nil
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid || claims["type"] != "refresh" {
-		log.Error("Invalid token claims or type", slog.String("err", err.Error()))
-		return "", nil
+		log.Error("Invalid token claims or type")
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	userID, ok := claims["sub"].(int64)
 	if !ok {
 		log.Error("invalid userID claim: %v", claims["sub"])
-		return "", nil
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	appID, ok := claims["app_id"].(int64)
 	if !ok {
 		log.Error("invalid appID claim: %v", claims["app_id"])
-		return "", nil
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	accessToken, err := a.jwtManager.IssueAccessToken(userID, appID)
 	if err != nil {
-		return "gen.PostRefresh500JSONResponse{}", err
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	return accessToken, nil
