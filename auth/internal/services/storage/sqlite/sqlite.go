@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/DimTur/learning_platform/auth/internal/domain/models"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
@@ -39,6 +40,7 @@ func (s *SQLLiteStorage) SaveUser(ctx context.Context, email string, passHash []
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	res, err := stmt.ExecContext(ctx, email, passHash)
 	if err != nil {
@@ -58,7 +60,7 @@ func (s *SQLLiteStorage) SaveUser(ctx context.Context, email string, passHash []
 	return userID, nil
 }
 
-// User returns user by email.
+// FindUserByEmail returns user by email.
 func (s *SQLLiteStorage) FindUserByEmail(ctx context.Context, email string) (models.User, error) {
 	const op = "storage.sqlite.FindUserByEmail"
 
@@ -66,6 +68,7 @@ func (s *SQLLiteStorage) FindUserByEmail(ctx context.Context, email string) (mod
 	if err != nil {
 		return models.User{}, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	row := stmt.QueryRowContext(ctx, email)
 
@@ -90,6 +93,7 @@ func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID int64) (bool, error
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	row := stmt.QueryRowContext(ctx, userID)
 
@@ -106,6 +110,7 @@ func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID int64) (bool, error
 	return isAdmin, nil
 }
 
+// FindAppByID returns user by id.
 func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID int64) (models.App, error) {
 	const op = "storage.sqlite.App"
 
@@ -113,6 +118,7 @@ func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID int64) (models.A
 	if err != nil {
 		return models.App{}, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	row := stmt.QueryRowContext(ctx, appID)
 
@@ -129,6 +135,111 @@ func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID int64) (models.A
 	return app, nil
 }
 
+// AddApp saves app to db.
+//
+// TODO: deprecated
 func (s *SQLLiteStorage) AddApp(ctx context.Context, name string, secret string) (int64, error) {
-	return 0, nil
+	const op = "storage.sqlite.AddApp"
+
+	stmt, err := s.db.Prepare("INSERT INTO auth_apps(name, secret) VALUES(?, ?)")
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	defer stmt.Close()
+
+	res, err := stmt.ExecContext(ctx, name, secret)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrAppExists)
+		}
+
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	appID, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("%s: failed to get last insert id: %w", op, err)
+	}
+
+	return appID, nil
+}
+
+// SaveRefreshToken saves refresh_token to db.
+func (s *SQLLiteStorage) SaveRefreshToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error {
+	const op = "storage.sqlite.SaveRefreshToken"
+
+	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO auth_refresh_tokens(user_id, token, expires_at) VALUES(?,?,?)`)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.ExecContext(ctx, userID, token, expiresAt); err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return fmt.Errorf("%s: %w", op, storage.ErrTokenExists)
+		}
+
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
+// DeleteRefreshToken deletes refresh_token from db.
+func (s *SQLLiteStorage) DeleteRefreshToken(ctx context.Context, token string) error {
+	const op = "storage.sqlite.DeleteRefreshToken"
+
+	stmt, err := s.db.PrepareContext(ctx, `DELETE FROM auth_refresh_tokens WHERE token = ?`)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer stmt.Close()
+
+	res, err := stmt.ExecContext(ctx, token)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("%s: %w", op, storage.ErrTokenNotFound)
+	}
+
+	return nil
+}
+
+// FindRefreshToken finds refresh_token in db.
+func (s *SQLLiteStorage) FindRefreshToken(ctx context.Context, userID int64) (models.RefreshToken, error) {
+	const op = "storage.sqlite.FindRefreshToken"
+
+	stmt, err := s.db.PrepareContext(ctx, `SELECT token FROM auth_refresh_tokens WHERE user_id = ?`)
+	if err != nil {
+		return models.RefreshToken{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	var tokenFromDB string
+
+	err = stmt.QueryRowContext(ctx, userID).Scan(&tokenFromDB)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sql.ErrNoRows {
+			return models.RefreshToken{
+				Token:  "",
+				UserID: userID,
+			}, fmt.Errorf("%s: %w", op, storage.ErrTokenNotFound)
+		}
+
+		return models.RefreshToken{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return models.RefreshToken{
+		Token:  tokenFromDB,
+		UserID: userID,
+	}, nil
 }
