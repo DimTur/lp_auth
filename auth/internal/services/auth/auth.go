@@ -50,12 +50,12 @@ type JWTManager interface {
 }
 
 var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInvalidAppID       = errors.New("invalid app id")
-	ErrUserExists         = errors.New("user already exists")
-	ErrAppExists          = errors.New("app already exists")
-	ErrIvalidUserID       = errors.New("invalid user id")
-	ErrIvalidRefreshToken = errors.New("invalid refresh token")
+	ErrInvalidCredentials  = errors.New("invalid credentials")
+	ErrInvalidAppID        = errors.New("invalid app id")
+	ErrUserExists          = errors.New("user already exists")
+	ErrAppExists           = errors.New("app already exists")
+	ErrInvalidUserID       = errors.New("invalid user id")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
 )
 
 type AuthHandlers struct {
@@ -140,7 +140,7 @@ func (a *AuthHandlers) LoginUser(
 	if err != nil {
 		if errors.Is(err, storage.ErrTokenNotFound) {
 			a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrIvalidUserID)
+			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 		}
 
 		a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
@@ -153,7 +153,7 @@ func (a *AuthHandlers) LoginUser(
 		if err != nil {
 			if errors.Is(err, storage.ErrTokenNotFound) {
 				a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-				return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrIvalidRefreshToken)
+				return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 			}
 
 			a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
@@ -230,13 +230,13 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 	token, err := a.jwtManager.VerifyToken(refreshToken)
 	if err != nil {
 		log.Error("token verification failed: %v", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid || claims["type"] != "refresh" {
-		log.Error("Invalid token claims or type")
-		return "", fmt.Errorf("%s: %w", op, err)
+		log.Error("invalid token claims or type")
+		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 	}
 
 	userID, ok := claims["sub"].(int64)

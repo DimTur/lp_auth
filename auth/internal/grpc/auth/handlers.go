@@ -19,7 +19,7 @@ type AuthHandlers interface {
 		email string,
 		password string,
 		appID int64,
-	) (token string, err error)
+	) (resp ssov1.LoginUserResponse, err error)
 	RegisterUser(
 		ctx context.Context,
 		email string,
@@ -49,7 +49,7 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 		return nil, err
 	}
 
-	token, err := s.auth.LoginUser(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
+	tokens, err := s.auth.LoginUser(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
@@ -59,7 +59,8 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 	}
 
 	return &ssov1.LoginUserResponse{
-		AccessToken: token,
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
 	}, nil
 }
 
@@ -83,7 +84,22 @@ func (s *serverAPI) RegisterUser(ctx context.Context, req *ssov1.RegisterUserReq
 }
 
 func (s *serverAPI) RefreshToken(ctx context.Context, req *ssov1.RefreshTokenRequest) (*ssov1.RefreshTokenResponse, error) {
-	return &ssov1.RefreshTokenResponse{}, nil
+	if err := validator.ValidateRefreshToken(req); err != nil {
+		return nil, err
+	}
+
+	accessToken, err := s.auth.RefreshToken(ctx, req.GetRefreshToken())
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidRefreshToken) {
+			return nil, status.Error(codes.InvalidArgument, "wrong token")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.RefreshTokenResponse{
+		AccessToken: accessToken,
+	}, nil
 }
 
 func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
@@ -106,5 +122,20 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ss
 }
 
 func (s *serverAPI) AddApp(ctx context.Context, req *ssov1.AddAppRequest) (*ssov1.AddAppResponse, error) {
-	return &ssov1.AddAppResponse{}, nil
+	if err := validator.ValidateApp(req); err != nil {
+		return nil, err
+	}
+
+	appID, err := s.auth.RegisterUser(ctx, req.GetName(), req.GetSecret())
+	if err != nil {
+		if errors.Is(err, auth.ErrAppExists) {
+			return nil, status.Error(codes.InvalidArgument, "app already exists")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.AddAppResponse{
+		AppId: appID,
+	}, nil
 }
