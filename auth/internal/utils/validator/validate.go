@@ -16,7 +16,6 @@ var (
 		"upper":   regexp.MustCompile(`[A-Z]`),
 		"special": regexp.MustCompile(`[!@#$%^&*]`),
 	}
-	appIDRegex = regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$`)
 )
 
 // ValidateLogin validates login request
@@ -83,21 +82,21 @@ func validatePassword(password string) error {
 	return nil
 }
 
-func validateAppID(appID string) error {
-	if appID == "" {
+func validateAppID(appID int64) error {
+	if appID == 0 {
 		return status.Error(codes.InvalidArgument, "app_id is required")
 	}
-	if !appIDRegex.MatchString(appID) {
+	if appID <= 0 {
 		return status.Error(codes.InvalidArgument, "invalid app_id")
 	}
 	return nil
 }
 
-func validateUserID(userID string) error {
-	if userID == "" {
+func validateUserID(userID int64) error {
+	if userID == 0 {
 		return status.Error(codes.InvalidArgument, "user_id is required")
 	}
-	if !appIDRegex.MatchString(userID) {
+	if userID <= 0 {
 		return status.Error(codes.InvalidArgument, "invalid user_id")
 	}
 	return nil

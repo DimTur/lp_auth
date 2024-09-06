@@ -18,20 +18,20 @@ type AuthHandlers interface {
 		ctx context.Context,
 		email string,
 		password string,
-		appID string,
+		appID int64,
 	) (token string, err error)
 	RegisterUser(
 		ctx context.Context,
 		email string,
 		password string,
-	) (userID string, err error)
+	) (userID int64, err error)
 	RefreshToken(ctx context.Context, refreshToken string) (accessToken string, err error)
-	IsAdmin(ctx context.Context, userID string) (bool, error)
+	IsAdmin(ctx context.Context, userID int64) (bool, error)
 	AddApp(
 		ctx context.Context,
 		name string,
 		secret string,
-	) (appID string, err error)
+	) (appID int64, err error)
 }
 
 type serverAPI struct {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/DimTur/learning_platform/auth/internal/domain/models"
 	"github.com/DimTur/learning_platform/auth/internal/services/storage"
-	"github.com/google/uuid"
 	"github.com/mattn/go-sqlite3"
 )
 
@@ -33,24 +32,27 @@ func (s *SQLLiteStorage) Close() error {
 }
 
 // SaveUser saves user to db.
-func (s *SQLLiteStorage) SaveUser(ctx context.Context, email string, passHash []byte) (string, error) {
+func (s *SQLLiteStorage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	const op = "storage.sqlite.SaveUser"
 
-	userID := uuid.New().String()
-
-	stmt, err := s.db.Prepare("INSERT INTO auth_users(id, email, pass_hash) VALUES(?, ?, ?)")
+	stmt, err := s.db.Prepare("INSERT INTO auth_users(email, pass_hash) VALUES(?, ?)")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	_, err = stmt.ExecContext(ctx, userID, email, passHash)
+	res, err := stmt.ExecContext(ctx, email, passHash)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			return "", fmt.Errorf("%s: %w", op, storage.ErrUserExitsts)
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExitsts)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	userID, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("%s: failed to get last insert id: %w", op, err)
 	}
 
 	return userID, nil
@@ -81,7 +83,7 @@ func (s *SQLLiteStorage) FindUserByEmail(ctx context.Context, email string) (mod
 }
 
 // IsAdmin checks if user is admin.
-func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID string) (bool, error) {
+func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "storage.sqlite.IsAdmin"
 
 	stmt, err := s.db.Prepare("SELECT is_admin FROM auth_users WHERE id = ?")
@@ -104,7 +106,7 @@ func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID string) (bool, erro
 	return isAdmin, nil
 }
 
-func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID string) (models.App, error) {
+func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID int64) (models.App, error) {
 	const op = "storage.sqlite.App"
 
 	stmt, err := s.db.Prepare("SELECT id, name, secret FROM auth_app WHERE id = ?")
@@ -127,6 +129,6 @@ func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID string) (models.
 	return app, nil
 }
 
-func (s *SQLLiteStorage) AddApp(ctx context.Context, name string, secret string) (string, error) {
-	return "", nil
+func (s *SQLLiteStorage) AddApp(ctx context.Context, name string, secret string) (int64, error) {
+	return 0, nil
 }

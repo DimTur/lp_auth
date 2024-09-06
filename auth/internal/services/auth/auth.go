@@ -26,21 +26,21 @@ type UserSaver interface {
 		ctx context.Context,
 		email string,
 		passHash []byte,
-	) (uid string, err error)
+	) (uid int64, err error)
 }
 
 type UserProvider interface {
 	FindUserByEmail(ctx context.Context, email string) (models.User, error)
-	IsAdmin(ctx context.Context, userID string) (bool, error)
+	IsAdmin(ctx context.Context, userID int64) (bool, error)
 }
 
 type AppProvider interface {
-	FindAppByID(ctx context.Context, appID string) (models.App, error)
+	FindAppByID(ctx context.Context, appID int64) (models.App, error)
 	AddApp(
 		ctx context.Context,
 		name string,
 		secret string,
-	) (appID string, err error)
+	) (appID int64, err error)
 }
 
 var (
@@ -76,7 +76,7 @@ func (a *AuthHandlers) LoginUser(
 	ctx context.Context,
 	email string,
 	password string,
-	appID string,
+	appID int64,
 ) (string, error) {
 	const op = "auth.LoginUser"
 
@@ -114,7 +114,7 @@ func (a *AuthHandlers) LoginUser(
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	token, err := a.jwtManager.IssueAccessToken(user.Email, app.ID)
+	token, err := a.jwtManager.IssueAccessToken(user.ID, app.ID)
 	if err != nil {
 		a.log.Info("failed to generate token", slog.String("err", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)
@@ -128,7 +128,7 @@ func (a *AuthHandlers) LoginUser(
 // RegisterNewUser registers new user in the system and returns user ID.
 //
 // If user with given username already exists, returns error.
-func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password string) (string, error) {
+func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password string) (int64, error) {
 	const op = "auth.RegisterUser"
 
 	log := a.log.With(
@@ -141,18 +141,18 @@ func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password 
 	passHash, err := a.passwordHasher.HashPassword(password)
 	if err != nil {
 		log.Error("failed to generate password hash", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExitsts) {
 			a.log.Warn("user already exists", slog.String("err", err.Error()))
-			return "", fmt.Errorf("%s: %w", op, ErrUserExists)
+			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
 		}
 
 		log.Error("failed to save user", slog.String("err", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	return id, nil
@@ -163,12 +163,12 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 }
 
 // IsAdmin checks if user is admin.
-func (a *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error) {
+func (a *AuthHandlers) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "auth.IsAdmin"
 
 	log := a.log.With(
 		slog.String("op", op),
-		slog.String("user_id", userID),
+		slog.Int64("user_id", userID),
 	)
 
 	log.Info("registering user")
@@ -188,6 +188,6 @@ func (a *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error)
 	return isAdmin, nil
 }
 
-func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (string, error) {
-	return "", nil
+func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (int64, error) {
+	return 0, nil
 }

@@ -18,13 +18,13 @@ message RegisterUserRequest {
 }
 
 message RegisterUserResponse {
-    string user_id = 1; // User ID of the registered user.
+    int64 user_id = 1; // User ID of the registered user.
 }
 
 message LoginUserRequest {
     string email = 1; // Email of the user to login.
     string password = 2; // Password of the user to login.
-    string app_id = 3; // ID of the app to loggin to.
+    int64 app_id = 3; // ID of the app to log in to.
 }
 
 message LoginUserResponse {
@@ -40,7 +40,7 @@ message RefreshTokenResponse {
 }
 
 message IsAdminRequest {
-    string user_id = 1; // User ID to validate.
+    int64 user_id = 1; // User ID to validate.
 }
 
 message IsAdminResponse {
@@ -53,5 +53,5 @@ message AddAppRequest {
 }
 
 message AddAppResponse {
-    bool app_id = 1; // App ID of the added app.
+    int64 app_id = 1; // App ID of the added app.
 }
