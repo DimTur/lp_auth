@@ -51,7 +51,14 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 
 	tokens, err := s.auth.LoginUser(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidCredentials) {
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			return nil, status.Error(codes.Unauthenticated, "invalid email or password")
+		case errors.Is(err, auth.ErrInvalidAppID):
+			return nil, status.Error(codes.InvalidArgument, "invalid app_id")
+		case errors.Is(err, auth.ErrInvalidRefreshToken):
+			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
+		case errors.Is(err, auth.ErrInvalidRefreshToken):
 			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
 		}
 
@@ -126,7 +133,7 @@ func (s *serverAPI) AddApp(ctx context.Context, req *ssov1.AddAppRequest) (*ssov
 		return nil, err
 	}
 
-	appID, err := s.auth.RegisterUser(ctx, req.GetName(), req.GetSecret())
+	appID, err := s.auth.AddApp(ctx, req.GetName(), req.GetSecret())
 	if err != nil {
 		if errors.Is(err, auth.ErrAppExists) {
 			return nil, status.Error(codes.InvalidArgument, "app already exists")

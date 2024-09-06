@@ -114,7 +114,7 @@ func (s *SQLLiteStorage) IsAdmin(ctx context.Context, userID int64) (bool, error
 func (s *SQLLiteStorage) FindAppByID(ctx context.Context, appID int64) (models.App, error) {
 	const op = "storage.sqlite.App"
 
-	stmt, err := s.db.Prepare("SELECT id, name, secret FROM auth_app WHERE id = ?")
+	stmt, err := s.db.Prepare("SELECT id, name, secret FROM auth_apps WHERE id = ?")
 	if err != nil {
 		return models.App{}, fmt.Errorf("%s: %w", op, err)
 	}

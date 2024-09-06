@@ -119,7 +119,7 @@ func (a *AuthHandlers) LoginUser(
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if !a.passwordHasher.ComparePassword(password, user.PassHash) {
+	if !a.passwordHasher.ComparePassword(user.PassHash, password) {
 		a.log.Info("invalid credentials")
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
@@ -140,11 +140,9 @@ func (a *AuthHandlers) LoginUser(
 	if err != nil {
 		if errors.Is(err, storage.ErrTokenNotFound) {
 			a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 		}
 
 		a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Delete refresh token
@@ -161,6 +159,7 @@ func (a *AuthHandlers) LoginUser(
 		}
 	}
 
+	fmt.Println(user.ID, app.ID)
 	// Generate new acccess token
 	accessToken, err := a.jwtManager.IssueAccessToken(user.ID, app.ID)
 	if err != nil {
@@ -172,6 +171,13 @@ func (a *AuthHandlers) LoginUser(
 	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID, app.ID)
 	if err != nil {
 		a.log.Info("failed to generate refresh token", slog.String("err", err.Error()))
+		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Write refresh token to DB
+	err = a.tokenProvider.SaveRefreshToken(ctx, user.ID, refreshToken, time.Now().Add(a.jwtManager.GetRefreshExpiresIn()))
+	if err != nil {
+		a.log.Info("failed to save refresh token to database", slog.String("err", err.Error()))
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -239,17 +245,19 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 	}
 
-	userID, ok := claims["sub"].(int64)
+	userIDFloat, ok := claims["sub"].(float64)
 	if !ok {
-		log.Error("invalid userID claim: %v", claims["sub"])
+		log.Error("invalid userID claim")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
+	userID := int64(userIDFloat)
 
-	appID, ok := claims["app_id"].(int64)
+	appIDFloat, ok := claims["app_id"].(float64)
 	if !ok {
-		log.Error("invalid appID claim: %v", claims["app_id"])
+		log.Error("invalid appID claim")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
+	appID := int64(appIDFloat)
 
 	accessToken, err := a.jwtManager.IssueAccessToken(userID, appID)
 	if err != nil {
