@@ -29,6 +29,7 @@ message LoginUserRequest {
 
 message LoginUserResponse {
     string access_token = 1; // Auth access token of the logged in user.
+    string refresh_token = 2; // Auth refresh token of the logged in user.
 }
 
 message RefreshTokenRequest {
