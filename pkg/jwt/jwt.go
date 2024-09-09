@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DimTur/learning_platform/auth/internal/domain/models"
+	"github.com/DimTur/lp_auth/internal/domain/models"
 	"github.com/golang-jwt/jwt/v5"
 )
 

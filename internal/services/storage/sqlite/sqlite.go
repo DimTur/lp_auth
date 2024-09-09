@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DimTur/learning_platform/auth/internal/domain/models"
-	"github.com/DimTur/learning_platform/auth/internal/services/storage"
+	"github.com/DimTur/lp_auth/internal/domain/models"
+	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/mattn/go-sqlite3"
 )
 

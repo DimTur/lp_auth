@@ -1,4 +1,4 @@
-module github.com/DimTur/learning_platform/auth
+module github.com/DimTur/lp_auth
 
 go 1.23.0
 

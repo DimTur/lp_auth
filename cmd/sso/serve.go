@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/DimTur/learning_platform/auth/internal/app"
-	"github.com/DimTur/learning_platform/auth/internal/config"
-	"github.com/DimTur/learning_platform/auth/internal/services/storage/sqlite"
+	"github.com/DimTur/lp_auth/internal/app"
+	"github.com/DimTur/lp_auth/internal/config"
+	"github.com/DimTur/lp_auth/internal/services/storage/sqlite"
 	"github.com/spf13/cobra"
 )
 

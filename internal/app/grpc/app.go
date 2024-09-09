@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	authgrpc "github.com/DimTur/learning_platform/auth/internal/grpc/auth"
+	authgrpc "github.com/DimTur/lp_auth/internal/grpc/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

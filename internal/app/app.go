@@ -4,11 +4,11 @@ import (
 	"log/slog"
 	"time"
 
-	grpcapp "github.com/DimTur/learning_platform/auth/internal/app/grpc"
-	"github.com/DimTur/learning_platform/auth/internal/services/auth"
-	"github.com/DimTur/learning_platform/auth/internal/services/storage/sqlite"
-	"github.com/DimTur/learning_platform/auth/pkg/crypto"
-	"github.com/DimTur/learning_platform/auth/pkg/jwt"
+	grpcapp "github.com/DimTur/lp_auth/internal/app/grpc"
+	"github.com/DimTur/lp_auth/internal/services/auth"
+	"github.com/DimTur/lp_auth/internal/services/storage/sqlite"
+	"github.com/DimTur/lp_auth/pkg/crypto"
+	"github.com/DimTur/lp_auth/pkg/jwt"
 )
 
 type App struct {

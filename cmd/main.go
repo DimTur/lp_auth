@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/DimTur/learning_platform/auth/cmd/sso"
+	"github.com/DimTur/lp_auth/cmd/sso"
 )
 
 func main() {
