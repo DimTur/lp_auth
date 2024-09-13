@@ -3,7 +3,7 @@ package validator
 import (
 	"regexp"
 
-	ssov1 "github.com/DimTur/lp_auth/api/pb"
+	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -96,15 +96,15 @@ func validatePassword(password string) error {
 	return nil
 }
 
-func validateAppID(appID int64) error {
-	if appID == 0 {
-		return status.Error(codes.InvalidArgument, "app_id is required")
-	}
-	if appID <= 0 {
-		return status.Error(codes.InvalidArgument, "invalid app_id")
-	}
-	return nil
-}
+// func validateAppID(appID int64) error {
+// 	if appID == 0 {
+// 		return status.Error(codes.InvalidArgument, "app_id is required")
+// 	}
+// 	if appID <= 0 {
+// 		return status.Error(codes.InvalidArgument, "invalid app_id")
+// 	}
+// 	return nil
+// }
 
 func validateUserID(userID int64) error {
 	if userID == 0 {

@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	ssov1 "github.com/DimTur/lp_auth/api/pb"
 	"github.com/DimTur/lp_auth/internal/services/auth"
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/DimTur/lp_auth/internal/utils/validator"
+	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

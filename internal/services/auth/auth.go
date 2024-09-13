@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	ssov1 "github.com/DimTur/lp_auth/api/pb"
 	"github.com/DimTur/lp_auth/internal/domain/models"
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/DimTur/lp_auth/pkg/crypto"
+	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
 	"github.com/golang-jwt/jwt/v5"
 )
 
