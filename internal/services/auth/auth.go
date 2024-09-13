@@ -43,8 +43,8 @@ type AppProvider interface {
 }
 
 type JWTManager interface {
-	IssueAccessToken(userID, appID int64) (string, error)
-	IssueRefreshToken(userID, appID int64) (string, error)
+	IssueAccessToken(userID int64) (string, error)
+	IssueRefreshToken(userID int64) (string, error)
 	VerifyToken(tokenString string) (*jwt.Token, error)
 	GetRefreshExpiresIn() time.Duration
 }
@@ -97,7 +97,6 @@ func (a *AuthHandlers) LoginUser(
 	ctx context.Context,
 	email string,
 	password string,
-	appID int64,
 ) (ssov1.LoginUserResponse, error) {
 	const op = "auth.LoginUser"
 
@@ -124,16 +123,16 @@ func (a *AuthHandlers) LoginUser(
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	app, err := a.appProvider.FindAppByID(ctx, appID)
-	if err != nil {
-		if errors.Is(err, storage.ErrAppNotFound) {
-			a.log.Warn("app not found", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
-		}
+	// app, err := a.appProvider.FindAppByID(ctx, appID)
+	// if err != nil {
+	// 	if errors.Is(err, storage.ErrAppNotFound) {
+	// 		a.log.Warn("app not found", slog.String("err", err.Error()))
+	// 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+	// 	}
 
-		a.log.Error("failed to get app", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
-	}
+	// 	a.log.Error("failed to get app", slog.String("err", err.Error()))
+	// 	return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+	// }
 
 	// Checks refresh token
 	existingRefreshToken, err := a.tokenProvider.FindRefreshToken(ctx, user.ID)
@@ -159,16 +158,15 @@ func (a *AuthHandlers) LoginUser(
 		}
 	}
 
-	fmt.Println(user.ID, app.ID)
 	// Generate new acccess token
-	accessToken, err := a.jwtManager.IssueAccessToken(user.ID, app.ID)
+	accessToken, err := a.jwtManager.IssueAccessToken(user.ID)
 	if err != nil {
 		a.log.Info("failed to generate access token", slog.String("err", err.Error()))
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Generate new refresh token
-	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID, app.ID)
+	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID)
 	if err != nil {
 		a.log.Info("failed to generate refresh token", slog.String("err", err.Error()))
 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
@@ -252,14 +250,7 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 	}
 	userID := int64(userIDFloat)
 
-	appIDFloat, ok := claims["app_id"].(float64)
-	if !ok {
-		log.Error("invalid appID claim")
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-	appID := int64(appIDFloat)
-
-	accessToken, err := a.jwtManager.IssueAccessToken(userID, appID)
+	accessToken, err := a.jwtManager.IssueAccessToken(userID)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}

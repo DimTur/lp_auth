@@ -50,14 +50,13 @@ func (j *JWTManager) GetRefreshExpiresIn() time.Duration {
 	return j.refreshExpiresIn
 }
 
-func (j *JWTManager) IssueAccessToken(userID, appID int64) (string, error) {
+func (j *JWTManager) IssueAccessToken(userID int64) (string, error) {
 	claims := jwt.MapClaims{
-		"iss":    j.issuer,
-		"sub":    userID,
-		"app_id": appID,
-		"iat":    time.Now().Unix(),
-		"exp":    time.Now().Add(j.accessExpiresIn).Unix(),
-		"type":   "access",
+		"iss":  j.issuer,
+		"sub":  userID,
+		"iat":  time.Now().Unix(),
+		"exp":  time.Now().Add(j.accessExpiresIn).Unix(),
+		"type": "access",
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
@@ -69,14 +68,13 @@ func (j *JWTManager) IssueAccessToken(userID, appID int64) (string, error) {
 	return signed, nil
 }
 
-func (j *JWTManager) IssueRefreshToken(userID, appID int64) (string, error) {
+func (j *JWTManager) IssueRefreshToken(userID int64) (string, error) {
 	claims := jwt.MapClaims{
-		"iss":    j.issuer,
-		"sub":    userID,
-		"app_id": appID,
-		"iat":    time.Now().Unix(),
-		"exp":    time.Now().Add(j.refreshExpiresIn).Unix(),
-		"type":   "refresh",
+		"iss":  j.issuer,
+		"sub":  userID,
+		"iat":  time.Now().Unix(),
+		"exp":  time.Now().Add(j.refreshExpiresIn).Unix(),
+		"type": "refresh",
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)

@@ -18,7 +18,6 @@ type AuthHandlers interface {
 		ctx context.Context,
 		email string,
 		password string,
-		appID int64,
 	) (resp ssov1.LoginUserResponse, err error)
 	RegisterUser(
 		ctx context.Context,
@@ -49,7 +48,7 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 		return nil, err
 	}
 
-	tokens, err := s.auth.LoginUser(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
+	tokens, err := s.auth.LoginUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrInvalidCredentials):

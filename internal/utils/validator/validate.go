@@ -28,10 +28,6 @@ func ValidateLogin(req *ssov1.LoginUserRequest) error {
 		return err
 	}
 
-	if err := validateAppID(req.GetAppId()); err != nil {
-		return err
-	}
-
 	return nil
 }
 
