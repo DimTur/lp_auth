@@ -56,6 +56,7 @@ var (
 	ErrAppExists           = errors.New("app already exists")
 	ErrInvalidUserID       = errors.New("invalid user id")
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+	ErrInvalidAccessToken  = errors.New("invalid access token")
 )
 
 type AuthHandlers struct {
@@ -306,4 +307,39 @@ func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (
 	}
 
 	return id, nil
+}
+
+func (a *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*ssov1.AuthCheckResponse, error) {
+	const op = "auth.AuthCheck"
+
+	// TODO: find user by access token
+	log := a.log.With(
+		slog.String("op", op),
+		// slog.String("user_id", userIDByToken),
+	)
+
+	log.Info("verifying access token")
+
+	token, err := a.jwtManager.VerifyToken(accessToken)
+	if err != nil {
+		log.Error("token verification failed: %v", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid || claims["type"] != "access" {
+		log.Error("invalid token claims or type")
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
+	}
+
+	userID, ok := claims["sub"].(float64)
+	if !ok {
+		log.Error("invalid subject claim")
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
+	}
+
+	return &ssov1.AuthCheckResponse{
+		IsValid: token.Valid,
+		UserId:  int64(userID),
+	}, nil
 }

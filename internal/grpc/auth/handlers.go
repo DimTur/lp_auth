@@ -31,6 +31,7 @@ type AuthHandlers interface {
 		name string,
 		secret string,
 	) (appID int64, err error)
+	AuthCheck(ctx context.Context, accessToken string) (resp *ssov1.AuthCheckResponse, err error)
 }
 
 type serverAPI struct {
@@ -144,4 +145,17 @@ func (s *serverAPI) AddApp(ctx context.Context, req *ssov1.AddAppRequest) (*ssov
 	return &ssov1.AddAppResponse{
 		AppId: appID,
 	}, nil
+}
+
+func (s *serverAPI) AuthCheck(ctx context.Context, req *ssov1.AuthCheckRequest) (*ssov1.AuthCheckResponse, error) {
+	resp, err := s.auth.AuthCheck(ctx, req.GetAccessToken())
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidAccessToken) {
+			return nil, status.Error(codes.Unauthenticated, "unauth")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return resp, nil
 }

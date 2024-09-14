@@ -3,18 +3,18 @@ module github.com/DimTur/lp_auth
 go 1.23.0
 
 require (
+	github.com/DimTur/lp_protos v0.0.7
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/spf13/cobra v1.8.1
 	google.golang.org/grpc v1.66.0
-	google.golang.org/protobuf v1.34.2
 )
 
 require (
-	github.com/DimTur/lp_protos v0.0.4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
 
