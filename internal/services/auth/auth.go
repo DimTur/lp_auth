@@ -53,6 +53,7 @@ var (
 	ErrInvalidCredentials  = errors.New("invalid credentials")
 	ErrInvalidAppID        = errors.New("invalid app id")
 	ErrUserExists          = errors.New("user already exists")
+	ErrUserNotFound        = errors.New("user not found")
 	ErrAppExists           = errors.New("app already exists")
 	ErrInvalidUserID       = errors.New("invalid user id")
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
@@ -112,7 +113,7 @@ func (a *AuthHandlers) LoginUser(
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			a.log.Warn("user not found", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrUserNotFound)
 		}
 
 		a.log.Error("failed to get user", slog.String("err", err.Error()))

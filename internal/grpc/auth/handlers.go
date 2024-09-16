@@ -56,6 +56,8 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 			return nil, status.Error(codes.Unauthenticated, "invalid email or password")
 		case errors.Is(err, auth.ErrInvalidAppID):
 			return nil, status.Error(codes.InvalidArgument, "invalid app_id")
+		case errors.Is(err, auth.ErrUserNotFound):
+			return nil, status.Error(codes.NotFound, "user not found")
 		case errors.Is(err, auth.ErrInvalidRefreshToken):
 			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
 		case errors.Is(err, auth.ErrInvalidRefreshToken):
