@@ -5,6 +5,5 @@
 *.pub
 *.pem
 local.yaml
-config.yaml
 commands.md
 *.db

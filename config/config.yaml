@@ -1,0 +1,11 @@
+grpc_server:
+  address: ":8081"
+  timeout: "2s"
+storage:
+  path: "./storage/sso.db"
+jwt:
+  issuer: auth-service
+  access_expires_in: 10h
+  refresh_expires_in: 30h
+  public_key: ./public_key.pem   
+  private_key: ./private_key.pem
