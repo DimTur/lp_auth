@@ -1,6 +1,7 @@
 package sso
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -8,7 +9,8 @@ import (
 
 	"github.com/DimTur/lp_auth/internal/app"
 	"github.com/DimTur/lp_auth/internal/config"
-	"github.com/DimTur/lp_auth/internal/services/storage/sqlite"
+	"github.com/DimTur/lp_auth/internal/services/storage/mongodb"
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 )
 
@@ -30,10 +32,30 @@ func NewServeCmd() *cobra.Command {
 				return err
 			}
 
-			storage, err := sqlite.New(cfg.Storage.SQLitePath)
+			fmt.Println("Username:", cfg.Storage.UserName)
+			fmt.Println("Password:", cfg.Storage.Password)
+			fmt.Println("DB Name:", cfg.Storage.DbName)
+
+			uri := fmt.Sprintf(
+				"mongodb://%s:%s@localhost:27017/%s?authSource=admin",
+				cfg.Storage.UserName,
+				cfg.Storage.Password,
+				cfg.Storage.DbName,
+			)
+
+			fmt.Println(uri)
+
+			storage, err := mongodb.NewMongoClient(ctx, uri, cfg.Storage.DbName)
 			if err != nil {
 				return err
 			}
+			defer func() {
+				if err := storage.Close(ctx); err != nil {
+					log.Error("failed to close db", slog.Any("err", err))
+				}
+			}()
+
+			validate := validator.New()
 
 			application, err := app.NewApp(
 				storage,
@@ -44,6 +66,7 @@ func NewServeCmd() *cobra.Command {
 				cfg.JWT.PrivateKey,
 				cfg.GRPCServer.Address,
 				log,
+				validate,
 			)
 			if err != nil {
 				return err
@@ -56,10 +79,6 @@ func NewServeCmd() *cobra.Command {
 
 			log.Info("server listening:", slog.Any("port", cfg.GRPCServer.Address))
 			<-ctx.Done()
-
-			if err := storage.Close(); err != nil {
-				log.Error("storage.Close", slog.Any("err", err))
-			}
 
 			grpcCloser()
 

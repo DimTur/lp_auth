@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "lp.sso.v1;ssov1";
+
+service Auth {
+    rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+    rpc LoginUser (LoginUserRequest) returns (LoginUserResponse);
+    rpc RefreshToken (RefreshTokenRequest) returns (RefreshTokenResponse);
+    rpc IsAdmin (IsAdminRequest) returns (IsAdminResponse);
+    rpc AuthCheck (AuthCheckRequest) returns (AuthCheckResponse);
+}
+
+message RegisterUserRequest {
+    string email = 1; // Email of the user to register.
+    string password = 2; // Password of the user to register.
+    string name = 3; // Name of the user to register
+}
+
+message RegisterUserResponse {
+    bool success = 1;
+}
+
+message LoginUserRequest {
+    string email = 1; // Email of the user to login.
+    string password = 2; // Password of the user to login.
+}
+
+message LoginUserResponse {
+    string access_token = 1; // Auth access token of the logged in user.
+    string refresh_token = 2; // Auth refresh token of the logged in user.
+}
+
+message RefreshTokenRequest {
+    string refresh_token = 1; // Auth refresh token of the logged in user.
+}
+
+message RefreshTokenResponse {
+    string access_token = 1; // Auth access token of the logged in user.
+}
+
+message IsAdminRequest {
+    string user_id = 1; // User ID to validate.
+}
+
+message IsAdminResponse {
+    bool is_admin = 1; // Indicates whether the user is an admin.
+}
+
+message AuthCheckRequest {
+    string access_token = 1; // Access token to validate.
+}
+
+message AuthCheckResponse {
+    bool is_valid = 1; // Indicates whether the token is valid.
+    string user_id = 2; // User ID extracted from the token if valid.
+}

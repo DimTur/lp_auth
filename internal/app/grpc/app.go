@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authgrpc "github.com/DimTur/lp_auth/internal/grpc/auth"
+	"github.com/go-playground/validator/v10"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -28,13 +29,15 @@ type Server struct {
 	listener            net.Listener
 	gracefulStopTimeout time.Duration
 
-	logger *slog.Logger
+	logger    *slog.Logger
+	validator *validator.Validate
 }
 
 func NewGRPCServer(
 	gRPCAddr string,
 	authHandlers authgrpc.AuthHandlers,
 	logger *slog.Logger,
+	validator *validator.Validate,
 ) (*Server, error) {
 	const op = "grpc-server"
 
@@ -76,6 +79,7 @@ func NewGRPCServer(
 		gRPCSrv:             gRPCSrv,
 		gracefulStopTimeout: GRPCDefaultGracefulStopTimeout,
 		logger:              logger,
+		validator:           validator,
 	}
 
 	return server, nil

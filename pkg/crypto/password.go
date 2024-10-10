@@ -17,8 +17,8 @@ func (ph PasswordHasher) HashPassword(password string) ([]byte, error) {
 	return hashedPassword, nil
 }
 
-func (ph PasswordHasher) ComparePassword(fromDB, fromUser string) bool {
-	if err := bcrypt.CompareHashAndPassword([]byte(fromDB), []byte(fromUser)); err != nil {
+func (ph PasswordHasher) ComparePassword(fromDB []byte, fromUser string) bool {
+	if err := bcrypt.CompareHashAndPassword(fromDB, []byte(fromUser)); err != nil {
 		return false
 	}
 	return true

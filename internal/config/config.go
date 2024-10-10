@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	GRPCServer GRPCServer `yaml:"grpc_server"`
-	Storage    Storage    `yaml:"storage"`
+	Storage    MongoDB    `yaml:"mongo_db"`
 	JWT        JWT        `yaml:"jwt"`
 }
 
@@ -17,8 +17,10 @@ type GRPCServer struct {
 	Address string `yaml:"address" env-default:":9090"`
 }
 
-type Storage struct {
-	SQLitePath string `yaml:"path" env-default:"db.sql"`
+type MongoDB struct {
+	DbName   string `yaml:"db_name"`
+	UserName string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type JWT struct {

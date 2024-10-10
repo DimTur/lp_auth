@@ -3,7 +3,7 @@ package validator
 import (
 	"regexp"
 
-	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
+	ssov1 "github.com/DimTur/lp_auth/pkg/server/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -44,15 +44,6 @@ func ValidateRegister(req *ssov1.RegisterUserRequest) error {
 	return nil
 }
 
-// ValidateIsAdmin validates IsAdmin request
-func ValidateIsAdmin(req *ssov1.IsAdminRequest) error {
-	if err := validateUserID(req.GetUserId()); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ValidateRefreshToken validates RefreshTokenRequest request
 func ValidateRefreshToken(req *ssov1.RefreshTokenRequest) error {
 	if err := validateRefreshToken(req.GetRefreshToken()); err != nil {
@@ -63,13 +54,13 @@ func ValidateRefreshToken(req *ssov1.RefreshTokenRequest) error {
 }
 
 // ValidateRefreshToken validates RefreshTokenRequest request
-func ValidateApp(req *ssov1.AddAppRequest) error {
-	if err := validateAppReq(req.GetName(), req.GetSecret()); err != nil {
-		return err
-	}
+// func ValidateApp(req *ssov1.AddAppRequest) error {
+// 	if err := validateAppReq(req.GetName(), req.GetSecret()); err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func validateEmail(email string) error {
 	if email == "" {
@@ -106,15 +97,15 @@ func validatePassword(password string) error {
 // 	return nil
 // }
 
-func validateUserID(userID int64) error {
-	if userID == 0 {
-		return status.Error(codes.InvalidArgument, "user_id is required")
-	}
-	if userID <= 0 {
-		return status.Error(codes.InvalidArgument, "invalid user_id")
-	}
-	return nil
-}
+// func validateUserID(userID int64) error {
+// 	if userID == 0 {
+// 		return status.Error(codes.InvalidArgument, "user_id is required")
+// 	}
+// 	if userID <= 0 {
+// 		return status.Error(codes.InvalidArgument, "invalid user_id")
+// 	}
+// 	return nil
+// }
 
 func validateRefreshToken(refreshToken string) error {
 	if refreshToken == "" {
@@ -123,10 +114,10 @@ func validateRefreshToken(refreshToken string) error {
 	return nil
 }
 
-func validateAppReq(name string, secret string) error {
-	if name == "" || secret == "" {
-		return status.Error(codes.InvalidArgument, "name and secret is required")
-	}
+// func validateAppReq(name string, secret string) error {
+// 	if name == "" || secret == "" {
+// 		return status.Error(codes.InvalidArgument, "name and secret is required")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

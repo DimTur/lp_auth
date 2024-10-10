@@ -1,8 +1,11 @@
 grpc_server:
   address: ":8081"
   timeout: "2s"
-storage:
-  path: "./storage/sso.db"
+mongo_db:
+  url: "mongodb://root:example@localhost:27017/db_sso"
+  db_name: db_sso
+  username: root
+  password: example
 jwt:
   issuer: auth-service
   access_expires_in: 10h

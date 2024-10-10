@@ -10,41 +10,29 @@ import (
 	"github.com/DimTur/lp_auth/internal/domain/models"
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/DimTur/lp_auth/pkg/crypto"
-	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type UserSaver interface {
-	SaveUser(
-		ctx context.Context,
-		email string,
-		passHash []byte,
-	) (uid int64, err error)
+	SaveUser(ctx context.Context, user *models.DBCreateUser) error
 }
 
 type UserProvider interface {
-	FindUserByEmail(ctx context.Context, email string) (models.User, error)
-	IsAdmin(ctx context.Context, userID int64) (bool, error)
+	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
+	GetUserRole(ctx context.Context, userID primitive.ObjectID) (string, error)
 }
 
 type TokenProvider interface {
-	SaveRefreshToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error
+	SaveRefreshToken(ctx context.Context, token *models.CreateRefreshToken) error
 	DeleteRefreshToken(ctx context.Context, token string) error
-	FindRefreshToken(ctx context.Context, userID int64) (models.RefreshToken, error)
-}
-
-type AppProvider interface {
-	FindAppByID(ctx context.Context, appID int64) (models.App, error)
-	AddApp(
-		ctx context.Context,
-		name string,
-		secret string,
-	) (appID int64, err error)
+	FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*models.RefreshToken, error)
 }
 
 type JWTManager interface {
-	IssueAccessToken(userID int64) (string, error)
-	IssueRefreshToken(userID int64) (string, error)
+	IssueAccessToken(userID primitive.ObjectID) (string, error)
+	IssueRefreshToken(userID primitive.ObjectID) (string, error)
 	VerifyToken(tokenString string) (*jwt.Token, error)
 	GetRefreshExpiresIn() time.Duration
 }
@@ -62,9 +50,9 @@ var (
 
 type AuthHandlers struct {
 	log            *slog.Logger
+	validator      *validator.Validate
 	usrSaver       UserSaver
 	usrProvider    UserProvider
-	appProvider    AppProvider
 	tokenProvider  TokenProvider
 	passwordHasher crypto.PasswordHasher
 	jwtManager     JWTManager
@@ -73,18 +61,18 @@ type AuthHandlers struct {
 // New returns a new instance of the Auth service.
 func New(
 	log *slog.Logger,
+	validator *validator.Validate,
 	userSaver UserSaver,
 	userProvider UserProvider,
-	appProvider AppProvider,
 	tokenProvider TokenProvider,
 	passwordHasher crypto.PasswordHasher,
 	jwtManager JWTManager,
 ) *AuthHandlers {
 	return &AuthHandlers{
 		log:            log,
+		validator:      validator,
 		usrSaver:       userSaver,
 		usrProvider:    userProvider,
-		appProvider:    appProvider,
 		tokenProvider:  tokenProvider,
 		passwordHasher: passwordHasher,
 		jwtManager:     jwtManager,
@@ -99,7 +87,7 @@ func (a *AuthHandlers) LoginUser(
 	ctx context.Context,
 	email string,
 	password string,
-) (ssov1.LoginUserResponse, error) {
+) (*models.LogInTokens, error) {
 	const op = "auth.LoginUser"
 
 	log := a.log.With(
@@ -107,34 +95,23 @@ func (a *AuthHandlers) LoginUser(
 		slog.String("username", email),
 	)
 
-	log.Info("attemting to login user")
+	log.Info("attempting to login user")
 
 	user, err := a.usrProvider.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			a.log.Warn("user not found", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+			return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, ErrUserNotFound)
 		}
 
 		a.log.Error("failed to get user", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	if !a.passwordHasher.ComparePassword(user.PassHash, password) {
 		a.log.Info("invalid credentials")
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
-
-	// app, err := a.appProvider.FindAppByID(ctx, appID)
-	// if err != nil {
-	// 	if errors.Is(err, storage.ErrAppNotFound) {
-	// 		a.log.Warn("app not found", slog.String("err", err.Error()))
-	// 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
-	// 	}
-
-	// 	a.log.Error("failed to get app", slog.String("err", err.Error()))
-	// 	return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
-	// }
 
 	// Checks refresh token
 	existingRefreshToken, err := a.tokenProvider.FindRefreshToken(ctx, user.ID)
@@ -152,38 +129,43 @@ func (a *AuthHandlers) LoginUser(
 		if err != nil {
 			if errors.Is(err, storage.ErrTokenNotFound) {
 				a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-				return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
+				return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 			}
 
 			a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+			return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 		}
 	}
 
-	// Generate new acccess token
+	// Generate new access token
 	accessToken, err := a.jwtManager.IssueAccessToken(user.ID)
 	if err != nil {
 		a.log.Info("failed to generate access token", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Generate new refresh token
 	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID)
 	if err != nil {
 		a.log.Info("failed to generate refresh token", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Write refresh token to DB
-	err = a.tokenProvider.SaveRefreshToken(ctx, user.ID, refreshToken, time.Now().Add(a.jwtManager.GetRefreshExpiresIn()))
+	refToken := &models.CreateRefreshToken{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().Add(a.jwtManager.GetRefreshExpiresIn()),
+	}
+	err = a.tokenProvider.SaveRefreshToken(ctx, refToken)
 	if err != nil {
 		a.log.Info("failed to save refresh token to database", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Info("user logged in successfully")
 
-	return ssov1.LoginUserResponse{
+	return &models.LogInTokens{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -192,34 +174,52 @@ func (a *AuthHandlers) LoginUser(
 // RegisterNewUser registers new user in the system and returns user ID.
 //
 // If user with given username already exists, returns error.
-func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password string) (int64, error) {
+func (ah *AuthHandlers) RegisterUser(ctx context.Context, user models.CreateUser) error {
 	const op = "auth.RegisterUser"
 
-	log := a.log.With(
+	log := ah.log.With(
 		slog.String("op", op),
-		slog.String("email", email),
+		slog.String("email", user.Email),
 	)
+
+	// Validation
+	err := ah.validator.Struct(user)
+	if err != nil {
+		log.Warn("invalid parameters", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
 
 	log.Info("registering user")
 
-	passHash, err := a.passwordHasher.HashPassword(password)
+	passHash, err := ah.passwordHasher.HashPassword(user.Password)
 	if err != nil {
 		log.Error("failed to generate password hash", slog.String("err", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
+	newUser := models.DBCreateUser{
+		ID:       primitive.NewObjectID(),
+		Email:    user.Email,
+		PassHash: passHash,
+		Name:     user.Name,
+		Role:     models.UserRoleDefault,
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	}
+	err = ah.usrSaver.SaveUser(ctx, &newUser)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExitsts) {
-			a.log.Warn("user already exists", slog.String("err", err.Error()))
-			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
+			ah.log.Warn("user already exists", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrUserExists)
 		}
 
 		log.Error("failed to save user", slog.String("err", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	return id, nil
+	log.Info("user registered in successfully")
+
+	return nil
 }
 
 func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
@@ -245,12 +245,17 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 	}
 
-	userIDFloat, ok := claims["sub"].(float64)
+	userIDHex, ok := claims["sub"].(string)
 	if !ok {
 		log.Error("invalid userID claim")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
-	userID := int64(userIDFloat)
+
+	userID, err := primitive.ObjectIDFromHex(userIDHex)
+	if err != nil {
+		log.Error("invalid userID hex")
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
 
 	accessToken, err := a.jwtManager.IssueAccessToken(userID)
 	if err != nil {
@@ -261,56 +266,37 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 }
 
 // IsAdmin checks if user is admin.
-func (a *AuthHandlers) IsAdmin(ctx context.Context, userID int64) (bool, error) {
+func (a *AuthHandlers) IsAdmin(ctx context.Context, userID primitive.ObjectID) (bool, error) {
 	const op = "auth.IsAdmin"
 
 	log := a.log.With(
 		slog.String("op", op),
-		slog.Int64("user_id", userID),
+		slog.String("user_id", userID.Hex()),
 	)
 
-	log.Info("registering user")
+	log.Info("check user is admin")
 
-	isAdmin, err := a.usrProvider.IsAdmin(ctx, userID)
+	role, err := a.usrProvider.GetUserRole(ctx, userID)
 	if err != nil {
-		if errors.Is(err, storage.ErrAppNotFound) {
+		if errors.Is(err, storage.ErrUserNotFound) {
 			a.log.Warn("user not found", slog.String("err", err.Error()))
-			return false, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+			return false, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
 
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("checked if user is admin", slog.Bool("is_admin", isAdmin))
-
-	return isAdmin, nil
-}
-
-func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (int64, error) {
-	const op = "auth.RegisterUser"
-
-	log := a.log.With(
-		slog.String("op", op),
-		slog.String("name", name),
-	)
-
-	log.Info("registering app")
-
-	id, err := a.appProvider.AddApp(ctx, name, secret)
-	if err != nil {
-		if errors.Is(err, storage.ErrAppExists) {
-			a.log.Warn("app already exists", slog.String("err", err.Error()))
-			return 0, fmt.Errorf("%s: %w", op, ErrAppExists)
-		}
-
-		log.Error("failed to save app", slog.String("err", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+	if role != models.UserRoleAdmin {
+		log.Info("checked user is admin", slog.Bool("is_admin", false))
+		return false, nil
 	}
 
-	return id, nil
+	log.Info("checked user is admin", slog.Bool("is_admin", true))
+
+	return true, nil
 }
 
-func (a *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*ssov1.AuthCheckResponse, error) {
+func (a *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*models.AuthCheck, error) {
 	const op = "auth.AuthCheck"
 
 	// TODO: find user by access token
@@ -333,14 +319,14 @@ func (a *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*ssov
 		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
 	}
 
-	userID, ok := claims["sub"].(float64)
+	userID, ok := claims["sub"].(string)
 	if !ok {
 		log.Error("invalid subject claim")
 		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
 	}
 
-	return &ssov1.AuthCheckResponse{
+	return &models.AuthCheck{
 		IsValid: token.Valid,
-		UserId:  int64(userID),
+		UserId:  userID,
 	}, nil
 }

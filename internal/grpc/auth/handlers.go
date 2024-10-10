@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 
+	"github.com/DimTur/lp_auth/internal/domain/models"
 	"github.com/DimTur/lp_auth/internal/services/auth"
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/DimTur/lp_auth/internal/utils/validator"
-	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
+	ssov1 "github.com/DimTur/lp_auth/pkg/server/grpc"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,20 +20,11 @@ type AuthHandlers interface {
 		ctx context.Context,
 		email string,
 		password string,
-	) (resp ssov1.LoginUserResponse, err error)
-	RegisterUser(
-		ctx context.Context,
-		email string,
-		password string,
-	) (userID int64, err error)
-	RefreshToken(ctx context.Context, refreshToken string) (accessToken string, err error)
-	IsAdmin(ctx context.Context, userID int64) (bool, error)
-	AddApp(
-		ctx context.Context,
-		name string,
-		secret string,
-	) (appID int64, err error)
-	AuthCheck(ctx context.Context, accessToken string) (resp *ssov1.AuthCheckResponse, err error)
+	) (*models.LogInTokens, error)
+	RegisterUser(ctx context.Context, user models.CreateUser) error
+	RefreshToken(ctx context.Context, refreshToken string) (string, error)
+	IsAdmin(ctx context.Context, userID primitive.ObjectID) (bool, error)
+	AuthCheck(ctx context.Context, accessToken string) (*models.AuthCheck, error)
 }
 
 type serverAPI struct {
@@ -78,7 +71,12 @@ func (s *serverAPI) RegisterUser(ctx context.Context, req *ssov1.RegisterUserReq
 		return nil, err
 	}
 
-	userID, err := s.auth.RegisterUser(ctx, req.GetEmail(), req.GetPassword())
+	user := models.CreateUser{
+		Email:    req.GetEmail(),
+		Password: req.GetPassword(),
+		Name:     req.GetName(),
+	}
+	err := s.auth.RegisterUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, auth.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
@@ -88,7 +86,7 @@ func (s *serverAPI) RegisterUser(ctx context.Context, req *ssov1.RegisterUserReq
 	}
 
 	return &ssov1.RegisterUserResponse{
-		UserId: userID,
+		Success: true,
 	}, nil
 }
 
@@ -112,11 +110,12 @@ func (s *serverAPI) RefreshToken(ctx context.Context, req *ssov1.RefreshTokenReq
 }
 
 func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
-	if err := validator.ValidateIsAdmin(req); err != nil {
-		return nil, err
+	userID, err := primitive.ObjectIDFromHex(req.UserId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
+	isAdmin, err := s.auth.IsAdmin(ctx, userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			return nil, status.Error(codes.AlreadyExists, "user not found")
@@ -130,25 +129,6 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ss
 	}, nil
 }
 
-func (s *serverAPI) AddApp(ctx context.Context, req *ssov1.AddAppRequest) (*ssov1.AddAppResponse, error) {
-	if err := validator.ValidateApp(req); err != nil {
-		return nil, err
-	}
-
-	appID, err := s.auth.AddApp(ctx, req.GetName(), req.GetSecret())
-	if err != nil {
-		if errors.Is(err, auth.ErrAppExists) {
-			return nil, status.Error(codes.InvalidArgument, "app already exists")
-		}
-
-		return nil, status.Error(codes.Internal, "internal error")
-	}
-
-	return &ssov1.AddAppResponse{
-		AppId: appID,
-	}, nil
-}
-
 func (s *serverAPI) AuthCheck(ctx context.Context, req *ssov1.AuthCheckRequest) (*ssov1.AuthCheckResponse, error) {
 	resp, err := s.auth.AuthCheck(ctx, req.GetAccessToken())
 	if err != nil {
@@ -159,5 +139,8 @@ func (s *serverAPI) AuthCheck(ctx context.Context, req *ssov1.AuthCheckRequest) 
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	return resp, nil
+	return &ssov1.AuthCheckResponse{
+		IsValid: resp.IsValid,
+		UserId:  resp.UserId,
+	}, nil
 }

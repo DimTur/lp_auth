@@ -6,17 +6,23 @@ import (
 
 	grpcapp "github.com/DimTur/lp_auth/internal/app/grpc"
 	"github.com/DimTur/lp_auth/internal/services/auth"
-	"github.com/DimTur/lp_auth/internal/services/storage/sqlite"
 	"github.com/DimTur/lp_auth/pkg/crypto"
 	"github.com/DimTur/lp_auth/pkg/jwt"
+	"github.com/go-playground/validator/v10"
 )
+
+type AuthStorage interface {
+	auth.UserSaver
+	auth.UserProvider
+	auth.TokenProvider
+}
 
 type App struct {
 	GRPCSrv *grpcapp.Server
 }
 
 func NewApp(
-	storage sqlite.SQLLiteStorage,
+	authStorage AuthStorage,
 	jwtIssuer string,
 	jwtAccessExpiresIn time.Duration,
 	jwtRefreshExpiresIn time.Duration,
@@ -25,6 +31,7 @@ func NewApp(
 	grpcAddr string,
 
 	logger *slog.Logger,
+	validator *validator.Validate,
 ) (*App, error) {
 	passwordHasher := crypto.NewPasswordHasher()
 	jwtManager, err := jwt.NewJWTManager(
@@ -40,17 +47,20 @@ func NewApp(
 
 	authGRPCHandlers := auth.New(
 		logger,
-		&storage,
-		&storage,
-		&storage,
-		&storage,
+		validator,
+		authStorage,
+		authStorage,
+		authStorage,
+		// &storage,
 		passwordHasher,
 		jwtManager,
 	)
+
 	grpcServer, err := grpcapp.NewGRPCServer(
 		grpcAddr,
 		authGRPCHandlers,
 		logger,
+		validator,
 	)
 	if err != nil {
 		return nil, err
