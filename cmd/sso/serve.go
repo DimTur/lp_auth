@@ -10,6 +10,7 @@ import (
 	"github.com/DimTur/lp_auth/internal/app"
 	"github.com/DimTur/lp_auth/internal/config"
 	"github.com/DimTur/lp_auth/internal/services/storage/mongodb"
+	authredis "github.com/DimTur/lp_auth/internal/services/storage/redis"
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 )
@@ -55,10 +56,19 @@ func NewServeCmd() *cobra.Command {
 				}
 			}()
 
+			redisOpts := &authredis.RedisOpts{
+				Host:     cfg.Redis.Host,
+				Port:     cfg.Redis.Port,
+				DB:       cfg.Redis.Db,
+				Password: cfg.Redis.Password,
+			}
+			authRedis, err := authredis.NewRedisClient(*redisOpts)
+
 			validate := validator.New()
 
 			application, err := app.NewApp(
 				storage,
+				authRedis,
 				cfg.JWT.Issuer,
 				cfg.JWT.AccessExpiresIn,
 				cfg.JWT.RefreshExpiresIn,

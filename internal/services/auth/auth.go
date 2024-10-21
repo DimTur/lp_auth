@@ -9,6 +9,7 @@ import (
 
 	"github.com/DimTur/lp_auth/internal/domain/models"
 	"github.com/DimTur/lp_auth/internal/services/storage"
+	"github.com/DimTur/lp_auth/internal/services/storage/redis"
 	"github.com/DimTur/lp_auth/pkg/crypto"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
@@ -25,9 +26,15 @@ type UserProvider interface {
 }
 
 type TokenProvider interface {
-	SaveRefreshToken(ctx context.Context, token *models.CreateRefreshToken) error
-	DeleteRefreshToken(ctx context.Context, token string) error
-	FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*models.RefreshToken, error)
+	SaveRefreshTokenToDB(ctx context.Context, token *models.CreateRefreshToken) error
+	// SaveRefreshTokenToRedis(ctx context.Context, token *redis.CreateRefreshToken) error
+	// DeleteRefreshToken(ctx context.Context, token string) error
+	// FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*redis.RefreshToken, error)
+}
+
+type TokenRedisStore interface {
+	SaveRefreshTokenToRedis(ctx context.Context, token *redis.CreateRefreshToken) error
+	FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*redis.RefreshToken, error)
 }
 
 type JWTManager interface {
@@ -49,13 +56,14 @@ var (
 )
 
 type AuthHandlers struct {
-	log            *slog.Logger
-	validator      *validator.Validate
-	usrSaver       UserSaver
-	usrProvider    UserProvider
-	tokenProvider  TokenProvider
-	passwordHasher crypto.PasswordHasher
-	jwtManager     JWTManager
+	log             *slog.Logger
+	validator       *validator.Validate
+	usrSaver        UserSaver
+	usrProvider     UserProvider
+	tokenProvider   TokenProvider
+	tokenRedisStore TokenRedisStore
+	passwordHasher  crypto.PasswordHasher
+	jwtManager      JWTManager
 }
 
 // New returns a new instance of the Auth service.
@@ -65,17 +73,19 @@ func New(
 	userSaver UserSaver,
 	userProvider UserProvider,
 	tokenProvider TokenProvider,
+	tokenRedisStore TokenRedisStore,
 	passwordHasher crypto.PasswordHasher,
 	jwtManager JWTManager,
 ) *AuthHandlers {
 	return &AuthHandlers{
-		log:            log,
-		validator:      validator,
-		usrSaver:       userSaver,
-		usrProvider:    userProvider,
-		tokenProvider:  tokenProvider,
-		passwordHasher: passwordHasher,
-		jwtManager:     jwtManager,
+		log:             log,
+		validator:       validator,
+		usrSaver:        userSaver,
+		usrProvider:     userProvider,
+		tokenProvider:   tokenProvider,
+		tokenRedisStore: tokenRedisStore,
+		passwordHasher:  passwordHasher,
+		jwtManager:      jwtManager,
 	}
 }
 
@@ -114,26 +124,15 @@ func (a *AuthHandlers) LoginUser(
 	}
 
 	// Checks refresh token
-	existingRefreshToken, err := a.tokenProvider.FindRefreshToken(ctx, user.ID)
+	existingRefreshToken, err := a.tokenRedisStore.FindRefreshToken(ctx, user.ID)
 	if err != nil {
-		if errors.Is(err, storage.ErrTokenNotFound) {
+		switch {
+		case errors.Is(err, storage.ErrTokenNotFound):
 			a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-		}
-
-		a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
-	}
-
-	// Delete refresh token
-	if existingRefreshToken.Token != "" {
-		err = a.tokenProvider.DeleteRefreshToken(ctx, existingRefreshToken.Token)
-		if err != nil {
-			if errors.Is(err, storage.ErrTokenNotFound) {
-				a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-				return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
-			}
+		case errors.Is(err, storage.ErrUserIdConversion):
+			a.log.Warn("invalid user id", slog.String("err", err.Error()))
 
 			a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
-			return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 		}
 	}
 
@@ -144,6 +143,13 @@ func (a *AuthHandlers) LoginUser(
 		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 	}
 
+	if existingRefreshToken != nil {
+		log.Info("refresh token found in redis")
+		return &models.LogInTokens{
+			AccessToken:  accessToken,
+			RefreshToken: existingRefreshToken.Token,
+		}, nil
+	}
 	// Generate new refresh token
 	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID)
 	if err != nil {
@@ -151,16 +157,30 @@ func (a *AuthHandlers) LoginUser(
 		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
 	}
 
+	expireRefresh := time.Now().Add(a.jwtManager.GetRefreshExpiresIn())
+
 	// Write refresh token to DB
 	refToken := &models.CreateRefreshToken{
 		UserID:    user.ID,
 		Token:     refreshToken,
-		ExpiresAt: time.Now().Add(a.jwtManager.GetRefreshExpiresIn()),
+		ExpiresAt: expireRefresh,
 	}
-	err = a.tokenProvider.SaveRefreshToken(ctx, refToken)
-	if err != nil {
-		a.log.Info("failed to save refresh token to database", slog.String("err", err.Error()))
-		return &models.LogInTokens{}, fmt.Errorf("%s: %w", op, err)
+	if err := a.tokenProvider.SaveRefreshTokenToDB(ctx, refToken); err != nil {
+		log.Error("failed to save refresh token to database", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Write refresh token to Redis
+	refTokenPref := fmt.Sprintf("%s:%s", user.ID.Hex(), refreshToken)
+
+	refTokenToRedis := &redis.CreateRefreshToken{
+		UserID:    user.ID,
+		Token:     refTokenPref,
+		ExpiresAt: expireRefresh,
+	}
+	if err := a.tokenRedisStore.SaveRefreshTokenToRedis(ctx, refTokenToRedis); err != nil {
+		log.Error("failed to save refresh token to redis", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Info("user logged in successfully")

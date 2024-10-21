@@ -11,13 +11,54 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: db_sso
     volumes:
-      - db_data:/data/db
+      - mongo_data:/data/db
     healthcheck:
       test: ["CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7.4.1-alpine
+    container_name: redis_lp
+    restart: always
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+      image: rabbitmq:4.0.2-management
+      hostname: rabbitmq
+      restart: always
+      container_name: rabbitmq
+      volumes:
+        - rabbitmq_data:/var/lib/rabbitmq
+      env_file:
+        - .env
+      ports:
+        - "5672:5672"   # for AMQP conns
+        - "15672:15672" # to access the web interface RabbitMQ Management
+      healthcheck:
+        test: rabbitmq-diagnostics -q ping
+        interval: 10s
+        timeout: 30s
+        retries: 5
+
 volumes:
-  db_data:
+  mongo_data:
     name: mongo_data_sso
+  redis_data:
+    name: redis_data_lp
+  rabbitmq_data:
+    name: rabbitmq_data_lp
+  

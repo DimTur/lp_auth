@@ -10,6 +10,7 @@ import (
 type Config struct {
 	GRPCServer GRPCServer `yaml:"grpc_server"`
 	Storage    MongoDB    `yaml:"mongo_db"`
+	Redis      Redis      `yaml:"redis"`
 	JWT        JWT        `yaml:"jwt"`
 }
 
@@ -20,6 +21,13 @@ type GRPCServer struct {
 type MongoDB struct {
 	DbName   string `yaml:"db_name"`
 	UserName string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+type Redis struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Db       int    `yaml:"db"`
 	Password string `yaml:"password"`
 }
 

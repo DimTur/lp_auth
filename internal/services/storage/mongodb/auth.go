@@ -72,7 +72,7 @@ func (m *MClient) GetUserRole(ctx context.Context, userID primitive.ObjectID) (s
 	return userRole.Role, nil
 }
 
-func (m *MClient) SaveRefreshToken(ctx context.Context, token *models.CreateRefreshToken) error {
+func (m *MClient) SaveRefreshTokenToDB(ctx context.Context, token *models.CreateRefreshToken) error {
 	const op = "storage.mongodb.SaveRefreshToken"
 
 	coll := m.client.Database(m.dbname).Collection("tokens")
@@ -87,41 +87,41 @@ func (m *MClient) SaveRefreshToken(ctx context.Context, token *models.CreateRefr
 	return nil
 }
 
-func (m *MClient) FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*models.RefreshToken, error) {
-	const op = "storage.mongodb.FindRefreshToken"
+// func (m *MClient) FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*models.RefreshToken, error) {
+// 	const op = "storage.mongodb.FindRefreshToken"
 
-	coll := m.client.Database(m.dbname).Collection("tokens")
+// 	coll := m.client.Database(m.dbname).Collection("tokens")
 
-	filter := bson.M{"user_id": userID}
+// 	filter := bson.M{"user_id": userID}
 
-	var refToken models.RefreshToken
-	err := coll.FindOne(ctx, filter).Decode(&refToken)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return &refToken, fmt.Errorf("%s: %w", op, storage.ErrTokenNotFound)
-		}
+// 	var refToken models.RefreshToken
+// 	err := coll.FindOne(ctx, filter).Decode(&refToken)
+// 	if err != nil {
+// 		if errors.Is(err, mongo.ErrNoDocuments) {
+// 			return &refToken, fmt.Errorf("%s: %w", op, storage.ErrTokenNotFound)
+// 		}
 
-		return &refToken, fmt.Errorf("%s: %w", op, err)
-	}
+// 		return &refToken, fmt.Errorf("%s: %w", op, err)
+// 	}
 
-	return &refToken, nil
-}
+// 	return &refToken, nil
+// }
 
-func (m *MClient) DeleteRefreshToken(ctx context.Context, token string) error {
-	const op = "storage.mongodb.DeleteRefreshToken"
+// func (m *MClient) DeleteRefreshToken(ctx context.Context, token string) error {
+// 	const op = "storage.mongodb.DeleteRefreshToken"
 
-	coll := m.client.Database(m.dbname).Collection("tokens")
+// 	coll := m.client.Database(m.dbname).Collection("tokens")
 
-	filter := bson.M{"token": token}
+// 	filter := bson.M{"token": token}
 
-	result, err := coll.DeleteOne(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
+// 	result, err := coll.DeleteOne(ctx, filter)
+// 	if err != nil {
+// 		return fmt.Errorf("%s: %w", op, err)
+// 	}
 
-	if result.DeletedCount == 0 {
-		return fmt.Errorf("%s: token not found", op)
-	}
+// 	if result.DeletedCount == 0 {
+// 		return fmt.Errorf("%s: token not found", op)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

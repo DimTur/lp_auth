@@ -6,6 +6,11 @@ mongo_db:
   db_name: db_sso
   username: root
   password: example
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+  password: ""
 jwt:
   issuer: auth-service
   access_expires_in: 10h

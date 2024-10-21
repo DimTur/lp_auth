@@ -17,12 +17,17 @@ type AuthStorage interface {
 	auth.TokenProvider
 }
 
+type AuthRedis interface {
+	auth.TokenRedisStore
+}
+
 type App struct {
 	GRPCSrv *grpcapp.Server
 }
 
 func NewApp(
 	authStorage AuthStorage,
+	authRedis AuthRedis,
 	jwtIssuer string,
 	jwtAccessExpiresIn time.Duration,
 	jwtRefreshExpiresIn time.Duration,
@@ -51,6 +56,7 @@ func NewApp(
 		authStorage,
 		authStorage,
 		authStorage,
+		authRedis,
 		// &storage,
 		passwordHasher,
 		jwtManager,
