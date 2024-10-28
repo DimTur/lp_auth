@@ -17,8 +17,16 @@ type AuthStorage interface {
 	auth.TokenProvider
 }
 
-type AuthRedis interface {
+type TokenRedis interface {
 	auth.TokenRedisStore
+}
+
+type OTPRedis interface {
+	auth.OTPRedisStore
+}
+
+type AuthRabbitMq interface {
+	auth.RabbitMQQueues
 }
 
 type App struct {
@@ -27,7 +35,9 @@ type App struct {
 
 func NewApp(
 	authStorage AuthStorage,
-	authRedis AuthRedis,
+	tokenRedis TokenRedis,
+	otpRedis OTPRedis,
+	authRabbitMq AuthRabbitMq,
 	jwtIssuer string,
 	jwtAccessExpiresIn time.Duration,
 	jwtRefreshExpiresIn time.Duration,
@@ -56,8 +66,9 @@ func NewApp(
 		authStorage,
 		authStorage,
 		authStorage,
-		authRedis,
-		// &storage,
+		tokenRedis,
+		otpRedis,
+		authRabbitMq,
 		passwordHasher,
 		jwtManager,
 	)

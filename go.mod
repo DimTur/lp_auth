@@ -22,6 +22,7 @@ require (
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
 	github.com/redis/go-redis/v9 v9.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

@@ -53,15 +53,6 @@ func ValidateRefreshToken(req *ssov1.RefreshTokenRequest) error {
 	return nil
 }
 
-// ValidateRefreshToken validates RefreshTokenRequest request
-// func ValidateApp(req *ssov1.AddAppRequest) error {
-// 	if err := validateAppReq(req.GetName(), req.GetSecret()); err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }
-
 func validateEmail(email string) error {
 	if email == "" {
 		return status.Error(codes.InvalidArgument, "email is required")
@@ -87,37 +78,9 @@ func validatePassword(password string) error {
 	return nil
 }
 
-// func validateAppID(appID int64) error {
-// 	if appID == 0 {
-// 		return status.Error(codes.InvalidArgument, "app_id is required")
-// 	}
-// 	if appID <= 0 {
-// 		return status.Error(codes.InvalidArgument, "invalid app_id")
-// 	}
-// 	return nil
-// }
-
-// func validateUserID(userID int64) error {
-// 	if userID == 0 {
-// 		return status.Error(codes.InvalidArgument, "user_id is required")
-// 	}
-// 	if userID <= 0 {
-// 		return status.Error(codes.InvalidArgument, "invalid user_id")
-// 	}
-// 	return nil
-// }
-
 func validateRefreshToken(refreshToken string) error {
 	if refreshToken == "" {
 		return status.Error(codes.InvalidArgument, "refresh_token is required")
 	}
 	return nil
 }
-
-// func validateAppReq(name string, secret string) error {
-// 	if name == "" || secret == "" {
-// 		return status.Error(codes.InvalidArgument, "name and secret is required")
-// 	}
-
-// 	return nil
-// }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/DimTur/lp_auth/internal/app"
 	"github.com/DimTur/lp_auth/internal/config"
+	"github.com/DimTur/lp_auth/internal/services/rabbitmq"
 	"github.com/DimTur/lp_auth/internal/services/storage/mongodb"
 	authredis "github.com/DimTur/lp_auth/internal/services/storage/redis"
 	"github.com/go-playground/validator/v10"
@@ -56,19 +57,82 @@ func NewServeCmd() *cobra.Command {
 				}
 			}()
 
-			redisOpts := &authredis.RedisOpts{
+			redisTokenOpts := &authredis.RedisOpts{
 				Host:     cfg.Redis.Host,
 				Port:     cfg.Redis.Port,
-				DB:       cfg.Redis.Db,
+				DB:       cfg.Redis.TokenDB,
 				Password: cfg.Redis.Password,
 			}
-			authRedis, err := authredis.NewRedisClient(*redisOpts)
+			tokenRedis, err := authredis.NewRedisClient(*redisTokenOpts)
+			if err != nil {
+				log.Error("failed to close redis", slog.Any("err", err))
+			}
+
+			redisOTPOpts := &authredis.RedisOpts{
+				Host:     cfg.Redis.Host,
+				Port:     cfg.Redis.Port,
+				DB:       cfg.Redis.OtpDB,
+				Password: cfg.Redis.Password,
+			}
+			otpRedis, err := authredis.NewRedisClient(*redisOTPOpts)
+			if err != nil {
+				log.Error("failed to close redis", slog.Any("err", err))
+			}
+
+			// Init RabbitMQ
+			rmqUrl := fmt.Sprintf(
+				"amqp://%s:%s@%s:%d/",
+				cfg.RabbitMQ.UserName,
+				cfg.RabbitMQ.Password,
+				cfg.RabbitMQ.Host,
+				cfg.RabbitMQ.Port,
+			)
+			rmq, err := rabbitmq.NewClient(rmqUrl)
+			if err != nil {
+				log.Error("failed init rabbit mq", slog.Any("err", err))
+			}
+
+			// Declare OTP exchange
+			if err := rmq.DeclareExchange(
+				cfg.RabbitMQ.OTPExchange.Name,
+				cfg.RabbitMQ.OTPExchange.Kind,
+				cfg.RabbitMQ.OTPExchange.Durable,
+				cfg.RabbitMQ.OTPExchange.AutoDeleted,
+				cfg.RabbitMQ.OTPExchange.Internal,
+				cfg.RabbitMQ.OTPExchange.NoWait,
+				cfg.RabbitMQ.OTPExchange.Args.ToMap(),
+			); err != nil {
+				log.Error("failed to declare OTP exchange", slog.Any("err", err))
+			}
+
+			// Declare OTP Queue
+			if _, err := rmq.DeclareQueue(
+				cfg.RabbitMQ.OTPQueue.Name,
+				cfg.RabbitMQ.OTPQueue.Durable,
+				cfg.RabbitMQ.OTPQueue.AutoDeleted,
+				cfg.RabbitMQ.OTPQueue.Exclusive,
+				cfg.RabbitMQ.OTPQueue.NoWait,
+				cfg.RabbitMQ.OTPQueue.Args.ToMap(),
+			); err != nil {
+				log.Error("failed to declare OTP queue", slog.Any("err", err))
+			}
+
+			// Bind OTP queue to OTP exchange
+			if err := rmq.BindQueueToExchange(
+				cfg.RabbitMQ.OTPQueue.Name,
+				cfg.RabbitMQ.OTPExchange.Name,
+				cfg.RabbitMQ.OTPRoutingKey,
+			); err != nil {
+				log.Error("failed to bind OTP queue", slog.Any("err", err))
+			}
 
 			validate := validator.New()
 
 			application, err := app.NewApp(
 				storage,
-				authRedis,
+				tokenRedis,
+				otpRedis,
+				rmq,
 				cfg.JWT.Issuer,
 				cfg.JWT.AccessExpiresIn,
 				cfg.JWT.RefreshExpiresIn,
@@ -90,6 +154,7 @@ func NewServeCmd() *cobra.Command {
 			log.Info("server listening:", slog.Any("port", cfg.GRPCServer.Address))
 			<-ctx.Done()
 
+			rmq.Close()
 			grpcCloser()
 
 			return nil

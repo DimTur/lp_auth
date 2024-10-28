@@ -12,7 +12,10 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-const CollAuth = "auth"
+const (
+	CollAuth   = "auth"
+	CollTokens = "tokens"
+)
 
 func (m *MClient) SaveUser(ctx context.Context, user *models.DBCreateUser) error {
 	const op = "storage.mongodb.SaveUser"
@@ -51,13 +54,27 @@ func (m *MClient) FindUserByEmail(ctx context.Context, email string) (*models.Us
 	return &user, nil
 }
 
+func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateUserInfo) error {
+	const op = "storage.mongodb.UpdateUserInfo"
+
+	coll := m.client.Database(m.dbname).Collection(CollAuth)
+	_, err := coll.UpdateByID(ctx, userInfo.ID, userInfo)
+	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			return fmt.Errorf("%s: %w", op, storage.ErrInvalidCredentials)
+		}
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
 func (m *MClient) GetUserRole(ctx context.Context, userID primitive.ObjectID) (string, error) {
 	const op = "storage.mongodb.GetUserRole"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
 
 	filter := bson.M{"_id": userID}
-	fmt.Printf("Filter: %v\n", filter)
 
 	var userRole models.UserRole
 	err := coll.FindOne(ctx, filter).Decode(&userRole)
@@ -75,7 +92,7 @@ func (m *MClient) GetUserRole(ctx context.Context, userID primitive.ObjectID) (s
 func (m *MClient) SaveRefreshTokenToDB(ctx context.Context, token *models.CreateRefreshToken) error {
 	const op = "storage.mongodb.SaveRefreshToken"
 
-	coll := m.client.Database(m.dbname).Collection("tokens")
+	coll := m.client.Database(m.dbname).Collection(CollTokens)
 	_, err := coll.InsertOne(ctx, token)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -87,41 +104,22 @@ func (m *MClient) SaveRefreshTokenToDB(ctx context.Context, token *models.Create
 	return nil
 }
 
-// func (m *MClient) FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*models.RefreshToken, error) {
-// 	const op = "storage.mongodb.FindRefreshToken"
+func (m *MClient) GetExistChatID(ctx context.Context, userID primitive.ObjectID) (string, error) {
+	const op = "storage.mongodb.GetExistChatID"
 
-// 	coll := m.client.Database(m.dbname).Collection("tokens")
+	coll := m.client.Database(m.dbname).Collection(CollAuth)
 
-// 	filter := bson.M{"user_id": userID}
+	filter := bson.M{"_id": userID}
 
-// 	var refToken models.RefreshToken
-// 	err := coll.FindOne(ctx, filter).Decode(&refToken)
-// 	if err != nil {
-// 		if errors.Is(err, mongo.ErrNoDocuments) {
-// 			return &refToken, fmt.Errorf("%s: %w", op, storage.ErrTokenNotFound)
-// 		}
+	var chatID models.UserChatID
+	err := coll.FindOne(ctx, filter).Decode(&chatID)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+		}
 
-// 		return &refToken, fmt.Errorf("%s: %w", op, err)
-// 	}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
 
-// 	return &refToken, nil
-// }
-
-// func (m *MClient) DeleteRefreshToken(ctx context.Context, token string) error {
-// 	const op = "storage.mongodb.DeleteRefreshToken"
-
-// 	coll := m.client.Database(m.dbname).Collection("tokens")
-
-// 	filter := bson.M{"token": token}
-
-// 	result, err := coll.DeleteOne(ctx, filter)
-// 	if err != nil {
-// 		return fmt.Errorf("%s: %w", op, err)
-// 	}
-
-// 	if result.DeletedCount == 0 {
-// 		return fmt.Errorf("%s: token not found", op)
-// 	}
-
-// 	return nil
-// }
+	return chatID.ChatID, nil
+}

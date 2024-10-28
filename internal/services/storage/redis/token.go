@@ -22,7 +22,8 @@ func (r *RedisClient) SaveRefreshTokenToRedis(ctx context.Context, token *Create
 		"user_id": token.UserID.Hex(),
 	}
 
-	err := r.client.HSet(ctx, token.Token, hashFields).Err()
+	key := fmt.Sprintf("%s_%s", token.Token, token.UserID.Hex())
+	err := r.client.HSet(ctx, key, hashFields).Err()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -99,42 +100,3 @@ func (r *RedisClient) DeleteRefreshToken(ctx context.Context, token string) erro
 
 	return nil
 }
-
-// func (r *RedisClient) FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*models.RefreshToken, error) {
-// 	const op = "storage.mongodb.FindRefreshToken"
-
-// 	coll := m.client.Database(m.dbname).Collection("tokens")
-
-// 	filter := bson.M{"user_id": userID}
-
-// 	var refToken models.RefreshToken
-// 	err := coll.FindOne(ctx, filter).Decode(&refToken)
-// 	if err != nil {
-// 		if errors.Is(err, mongo.ErrNoDocuments) {
-// 			return &refToken, fmt.Errorf("%s: %w", op, storage.ErrTokenNotFound)
-// 		}
-
-// 		return &refToken, fmt.Errorf("%s: %w", op, err)
-// 	}
-
-// 	return &refToken, nil
-// }
-
-// func (m *MClient) DeleteRefreshToken(ctx context.Context, token string) error {
-// 	const op = "storage.mongodb.DeleteRefreshToken"
-
-// 	coll := m.client.Database(m.dbname).Collection("tokens")
-
-// 	filter := bson.M{"token": token}
-
-// 	result, err := coll.DeleteOne(ctx, filter)
-// 	if err != nil {
-// 		return fmt.Errorf("%s: %w", op, err)
-// 	}
-
-// 	if result.DeletedCount == 0 {
-// 		return fmt.Errorf("%s: token not found", op)
-// 	}
-
-// 	return nil
-// }

@@ -11,6 +11,7 @@ type Config struct {
 	GRPCServer GRPCServer `yaml:"grpc_server"`
 	Storage    MongoDB    `yaml:"mongo_db"`
 	Redis      Redis      `yaml:"redis"`
+	RabbitMQ   RabbitMQ   `yaml:"rabbit_mq"`
 	JWT        JWT        `yaml:"jwt"`
 }
 
@@ -27,8 +28,46 @@ type MongoDB struct {
 type Redis struct {
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
-	Db       int    `yaml:"db"`
+	TokenDB  int    `yaml:"token_db"`
+	OtpDB    int    `yaml:"otp_db"`
 	Password string `yaml:"password"`
+}
+
+type RabbitMQ struct {
+	UserName      string      `yaml:"username"`
+	Password      string      `yaml:"password"`
+	Host          string      `yaml:"host"`
+	Port          int         `yaml:"port"`
+	OTPExchange   OTPExchange `yaml:"otp_exchange"`
+	OTPQueue      OTPQueue    `yaml:"otp_queue"`
+	OTPRoutingKey string      `yaml:"otp_routing_key"`
+}
+
+type OTPExchange struct {
+	Name        string       `yaml:"name"`
+	Kind        string       `yaml:"kind"`
+	Durable     bool         `yaml:"durable"`
+	AutoDeleted bool         `yaml:"auto_deleted"`
+	Internal    bool         `yaml:"internal"`
+	NoWait      bool         `yaml:"no_wait"`
+	Args        ExchangeArgs `yaml:"args"`
+}
+
+type ExchangeArgs struct {
+	AltExchange string `yaml:"alternate_exchange"`
+}
+
+type OTPQueue struct {
+	Name        string    `yaml:"name"`
+	Durable     bool      `yaml:"durable"`
+	AutoDeleted bool      `yaml:"auto_deleted"`
+	Exclusive   bool      `yaml:"exclusive"`
+	NoWait      bool      `yaml:"no_wait"`
+	Args        QueueArgs `yaml:"args"`
+}
+
+type QueueArgs struct {
+	XMessageTtl int32 `yaml:"x_message_ttl"`
 }
 
 type JWT struct {
@@ -61,4 +100,16 @@ func Parse(s string) (*Config, error) {
 	c.JWT.PublicKeyTest = string(publicKey)
 
 	return c, nil
+}
+
+func (e ExchangeArgs) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"alternate-exchange": e.AltExchange,
+	}
+}
+
+func (q QueueArgs) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"x-message-ttl": q.XMessageTtl,
+	}
 }
