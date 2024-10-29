@@ -18,6 +18,7 @@ var (
 	ErrOTPNotFound        = errors.New("otp not found")
 	ErrOTPExpired         = errors.New("otp is already expired")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrNoTokensFound      = errors.New("no tokens found for user")
 
 	NilID = primitive.NilObjectID
 )

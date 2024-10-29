@@ -25,6 +25,9 @@ type AuthHandlers interface {
 	RefreshToken(ctx context.Context, refreshToken string) (string, error)
 	IsAdmin(ctx context.Context, userID primitive.ObjectID) (bool, error)
 	AuthCheck(ctx context.Context, accessToken string) (*models.AuthCheck, error)
+	LogInViaTg(ctx context.Context, login *models.LogInViaTg) error
+	CheckOTP(ctx context.Context, checkOTP *models.LoginUserOTP) (*models.LogInTokens, error)
+	UpdateUserInfo(ctx context.Context, userInfo *models.UpdateUserInfo) error
 }
 
 type serverAPI struct {
@@ -63,6 +66,74 @@ func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) 
 	return &ssov1.LoginUserResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
+	}, nil
+}
+
+func (s *serverAPI) LoginViaTg(ctx context.Context, req *ssov1.LoginViaTgRequest) (*ssov1.LoginViaTgResponse, error) {
+	login := &models.LogInViaTg{
+		Email: req.GetEmail(),
+	}
+
+	if err := s.auth.LogInViaTg(ctx, login); err != nil {
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			return nil, status.Error(codes.InvalidArgument, "invalid email")
+		case errors.Is(err, auth.ErrUserNotFound):
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.LoginViaTgResponse{
+		Success: true,
+		Info:    "start chat with our bot @auth_test_dim_tur_v2_bot",
+	}, nil
+}
+
+func (s *serverAPI) CheckOTPAndLogIn(ctx context.Context, req *ssov1.CheckOTPAndLogInRequest) (*ssov1.CheckOTPAndLogInResponse, error) {
+	otp := &models.LoginUserOTP{
+		Email: req.GetEmail(),
+		Code:  req.GetCode(),
+	}
+
+	tokens, err := s.auth.CheckOTP(ctx, otp)
+	if err != nil {
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			return nil, status.Error(codes.InvalidArgument, "invalid email")
+		case errors.Is(err, auth.ErrUserNotFound):
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.CheckOTPAndLogInResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+	}, nil
+}
+
+func (s *serverAPI) UpdateUserInfo(ctx context.Context, req *ssov1.UpdateUserInfoRequest) (*ssov1.UpdateUserInfoResponse, error) {
+	userInfo := &models.UpdateUserInfo{
+		ID:     req.GetId(),
+		Email:  req.GetEmail(),
+		Name:   req.GetName(),
+		TgLink: req.GetTgLink(),
+	}
+
+	if err := s.auth.UpdateUserInfo(ctx, userInfo); err != nil {
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			return nil, status.Error(codes.InvalidArgument, "invalid email")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.UpdateUserInfoResponse{
+		Success: true,
 	}, nil
 }
 

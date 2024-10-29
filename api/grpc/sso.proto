@@ -7,9 +7,12 @@ option go_package = "lp.sso.v1;ssov1";
 service Auth {
     rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
     rpc LoginUser (LoginUserRequest) returns (LoginUserResponse);
+    rpc LoginViaTg (LoginViaTgRequest) returns (LoginViaTgResponse);
     rpc RefreshToken (RefreshTokenRequest) returns (RefreshTokenResponse);
     rpc IsAdmin (IsAdminRequest) returns (IsAdminResponse);
     rpc AuthCheck (AuthCheckRequest) returns (AuthCheckResponse);
+    rpc UpdateUserInfo (UpdateUserInfoRequest) returns (UpdateUserInfoResponse);
+    rpc CheckOTPAndLogIn (CheckOTPAndLogInRequest) returns (CheckOTPAndLogInResponse);
 }
 
 message RegisterUserRequest {
@@ -28,6 +31,25 @@ message LoginUserRequest {
 }
 
 message LoginUserResponse {
+    string access_token = 1; // Auth access token of the logged in user.
+    string refresh_token = 2; // Auth refresh token of the logged in user.
+}
+
+message LoginViaTgRequest {
+    string email = 1; // Email of the user to login.
+}
+
+message LoginViaTgResponse {
+    bool success = 1;
+    string info = 2;
+}
+
+message CheckOTPAndLogInRequest {
+    string email = 1; // Email of the user to login.
+    string code = 2; // OTP code to login.
+}
+
+message CheckOTPAndLogInResponse {
     string access_token = 1; // Auth access token of the logged in user.
     string refresh_token = 2; // Auth refresh token of the logged in user.
 }
@@ -55,4 +77,16 @@ message AuthCheckRequest {
 message AuthCheckResponse {
     bool is_valid = 1; // Indicates whether the token is valid.
     string user_id = 2; // User ID extracted from the token if valid.
+}
+
+message UpdateUserInfoRequest {
+    string id = 1;
+    string email = 2; // Email of the user to register.
+    string name = 3; // Name of the user to register
+    string tg_link =4;
+    string chat_id = 5;
+}
+
+message UpdateUserInfoResponse {
+    bool success = 1;
 }

@@ -33,7 +33,6 @@ type UpdateUserInfo struct {
 	Email  string `json:"email,omitempty"`
 	Name   string `json:"name,omitempty"`
 	TgLink string `json:"tg_link,omitempty"`
-	ChatID string `json:"chat_id,omitempty"`
 }
 
 type DBCreateUser struct {

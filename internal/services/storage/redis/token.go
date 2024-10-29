@@ -19,7 +19,8 @@ func (r *RedisClient) SaveRefreshTokenToRedis(ctx context.Context, token *Create
 	}
 
 	hashFields := map[string]interface{}{
-		"user_id": token.UserID.Hex(),
+		"user_id":       token.UserID.Hex(),
+		"refresh_token": token.Token,
 	}
 
 	key := fmt.Sprintf("%s_%s", token.Token, token.UserID.Hex())
@@ -36,7 +37,7 @@ func (r *RedisClient) SaveRefreshTokenToRedis(ctx context.Context, token *Create
 	return nil
 }
 
-func (r *RedisClient) FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*RefreshToken, error) {
+func (r *RedisClient) FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*RefreshTokenFromRedis, error) {
 	const op = "storage.redis.FindRefreshToken"
 
 	pattern := fmt.Sprintf("*_%s", userID.Hex())
@@ -46,12 +47,12 @@ func (r *RedisClient) FindRefreshToken(ctx context.Context, userID primitive.Obj
 	}
 
 	if len(tokens) == 0 {
-		return nil, fmt.Errorf("%s: no tokens found for user", op)
+		return nil, fmt.Errorf("%s: %w", op, storage.ErrNoTokensFound)
 	}
 
 	lastToken := tokens[len(tokens)-1]
 
-	var token RefreshTokenToRedis
+	var token RefreshToken
 	err = r.client.HGetAll(ctx, lastToken).Scan(&token)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -62,7 +63,7 @@ func (r *RedisClient) FindRefreshToken(ctx context.Context, userID primitive.Obj
 		return nil, fmt.Errorf("%s: %w", op, storage.ErrUserIdConversion)
 	}
 
-	return &RefreshToken{
+	return &RefreshTokenFromRedis{
 		UserID: userIDObj,
 		Token:  token.Token,
 	}, nil

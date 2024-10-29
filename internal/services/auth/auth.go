@@ -33,6 +33,7 @@ type UserSaver interface {
 
 type UserProvider interface {
 	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
+	FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error)
 	GetUserRole(ctx context.Context, userID primitive.ObjectID) (string, error)
 	GetExistChatID(ctx context.Context, userID primitive.ObjectID) (string, error)
 }
@@ -43,7 +44,7 @@ type TokenProvider interface {
 
 type TokenRedisStore interface {
 	SaveRefreshTokenToRedis(ctx context.Context, token *redis.CreateRefreshToken) error
-	FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*redis.RefreshToken, error)
+	FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*redis.RefreshTokenFromRedis, error)
 }
 
 type OTPRedisStore interface {
@@ -152,8 +153,8 @@ func (ah *AuthHandlers) LoginUser(
 	return ah.generateTokens(ctx, log, user.ID)
 }
 
-func (ah *AuthHandlers) SingInViaTg(ctx context.Context, login *models.SingInViaTg) error {
-	const op = "auth.SingInViaTg"
+func (ah *AuthHandlers) LogInViaTg(ctx context.Context, login *models.LogInViaTg) error {
+	const op = "auth.LogInViaTg"
 
 	log := ah.log.With(
 		slog.String("op", op),
@@ -194,7 +195,7 @@ func (ah *AuthHandlers) SingInViaTg(ctx context.Context, login *models.SingInVia
 		otp := &redis.CreateOTP{
 			UserID:    user.ID.Hex(),
 			Code:      otp.RandOTP(),
-			ExpiresAt: time.Now(),
+			ExpiresAt: time.Now().Add(time.Minute), // TODO: transfer to config
 			Used:      false,
 		}
 
@@ -251,6 +252,11 @@ func (ah *AuthHandlers) CheckOTP(ctx context.Context, checkOTP *models.LoginUser
 
 	otp, err := ah.otpRedisStore.FindOTPCode(ctx, checkOTP.Code)
 	if err != nil || user.ID != otp.UserID {
+		log.Info("invalid credentials")
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
+
+	if err := ah.otpRedisStore.DeleteUserOTP(ctx, checkOTP.Code); err != nil {
 		log.Info("invalid credentials")
 		return nil, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
@@ -333,15 +339,14 @@ func (ah *AuthHandlers) UpdateUserInfo(ctx context.Context, userInfo *models.Upd
 		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	newUserInfo := models.DBUpdateUserInfo{
+	newUserInfo := &models.DBUpdateUserInfo{
 		ID:      userIdStr,
 		Email:   userInfo.Email,
 		Name:    userInfo.Name,
 		TgLink:  userInfo.TgLink,
-		ChatID:  userInfo.ChatID,
 		Updated: time.Now(),
 	}
-	err = ah.usrSaver.UpdateUserInfo(ctx, &newUserInfo)
+	err = ah.usrSaver.UpdateUserInfo(ctx, newUserInfo)
 	if err != nil {
 		if errors.Is(err, storage.ErrInvalidCredentials) {
 			ah.log.Warn("invalid credentials", slog.String("err", err.Error()))
@@ -473,14 +478,16 @@ func (ah *AuthHandlers) generateTokens(
 	existingRefreshToken, err := ah.tokenRedisStore.FindRefreshToken(ctx, userID)
 	if err != nil {
 		switch {
-		case errors.Is(err, storage.ErrTokenNotFound):
-			log.Warn("refresh token not found", slog.String("err", err.Error()))
+		case errors.Is(err, storage.ErrNoTokensFound):
+			log.Info("refresh token not found", slog.String("err", err.Error()))
 		case errors.Is(err, storage.ErrUserIdConversion):
 			log.Warn("invalid user id", slog.String("err", err.Error()))
 		default:
 			log.Error("failed to get refresh token", slog.String("err", err.Error()))
 		}
 	}
+
+	fmt.Println(existingRefreshToken)
 
 	// Generate new access-token
 	accessToken, err := ah.jwtManager.IssueAccessToken(userID)
@@ -519,10 +526,9 @@ func (ah *AuthHandlers) generateTokens(
 	}
 
 	// Store refresh-token to Redis
-	refTokenPref := fmt.Sprintf("%s:%s", userID.Hex(), refreshToken)
 	refTokenToRedis := &redis.CreateRefreshToken{
 		UserID:    userID,
-		Token:     refTokenPref,
+		Token:     refreshToken,
 		ExpiresAt: expireRefresh,
 	}
 	if err := ah.tokenRedisStore.SaveRefreshTokenToRedis(ctx, refTokenToRedis); err != nil {

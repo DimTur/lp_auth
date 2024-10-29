@@ -19,11 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Auth_RegisterUser_FullMethodName = "/auth.v1.Auth/RegisterUser"
-	Auth_LoginUser_FullMethodName    = "/auth.v1.Auth/LoginUser"
-	Auth_RefreshToken_FullMethodName = "/auth.v1.Auth/RefreshToken"
-	Auth_IsAdmin_FullMethodName      = "/auth.v1.Auth/IsAdmin"
-	Auth_AuthCheck_FullMethodName    = "/auth.v1.Auth/AuthCheck"
+	Auth_RegisterUser_FullMethodName     = "/auth.v1.Auth/RegisterUser"
+	Auth_LoginUser_FullMethodName        = "/auth.v1.Auth/LoginUser"
+	Auth_LoginViaTg_FullMethodName       = "/auth.v1.Auth/LoginViaTg"
+	Auth_RefreshToken_FullMethodName     = "/auth.v1.Auth/RefreshToken"
+	Auth_IsAdmin_FullMethodName          = "/auth.v1.Auth/IsAdmin"
+	Auth_AuthCheck_FullMethodName        = "/auth.v1.Auth/AuthCheck"
+	Auth_UpdateUserInfo_FullMethodName   = "/auth.v1.Auth/UpdateUserInfo"
+	Auth_CheckOTPAndLogIn_FullMethodName = "/auth.v1.Auth/CheckOTPAndLogIn"
 )
 
 // AuthClient is the client API for Auth service.
@@ -32,9 +35,12 @@ const (
 type AuthClient interface {
 	RegisterUser(ctx context.Context, in *RegisterUserRequest, opts ...grpc.CallOption) (*RegisterUserResponse, error)
 	LoginUser(ctx context.Context, in *LoginUserRequest, opts ...grpc.CallOption) (*LoginUserResponse, error)
+	LoginViaTg(ctx context.Context, in *LoginViaTgRequest, opts ...grpc.CallOption) (*LoginViaTgResponse, error)
 	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
 	IsAdmin(ctx context.Context, in *IsAdminRequest, opts ...grpc.CallOption) (*IsAdminResponse, error)
 	AuthCheck(ctx context.Context, in *AuthCheckRequest, opts ...grpc.CallOption) (*AuthCheckResponse, error)
+	UpdateUserInfo(ctx context.Context, in *UpdateUserInfoRequest, opts ...grpc.CallOption) (*UpdateUserInfoResponse, error)
+	CheckOTPAndLogIn(ctx context.Context, in *CheckOTPAndLogInRequest, opts ...grpc.CallOption) (*CheckOTPAndLogInResponse, error)
 }
 
 type authClient struct {
@@ -59,6 +65,16 @@ func (c *authClient) LoginUser(ctx context.Context, in *LoginUserRequest, opts .
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LoginUserResponse)
 	err := c.cc.Invoke(ctx, Auth_LoginUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authClient) LoginViaTg(ctx context.Context, in *LoginViaTgRequest, opts ...grpc.CallOption) (*LoginViaTgResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginViaTgResponse)
+	err := c.cc.Invoke(ctx, Auth_LoginViaTg_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -95,15 +111,38 @@ func (c *authClient) AuthCheck(ctx context.Context, in *AuthCheckRequest, opts .
 	return out, nil
 }
 
+func (c *authClient) UpdateUserInfo(ctx context.Context, in *UpdateUserInfoRequest, opts ...grpc.CallOption) (*UpdateUserInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateUserInfoResponse)
+	err := c.cc.Invoke(ctx, Auth_UpdateUserInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authClient) CheckOTPAndLogIn(ctx context.Context, in *CheckOTPAndLogInRequest, opts ...grpc.CallOption) (*CheckOTPAndLogInResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckOTPAndLogInResponse)
+	err := c.cc.Invoke(ctx, Auth_CheckOTPAndLogIn_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServer is the server API for Auth service.
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility.
 type AuthServer interface {
 	RegisterUser(context.Context, *RegisterUserRequest) (*RegisterUserResponse, error)
 	LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error)
+	LoginViaTg(context.Context, *LoginViaTgRequest) (*LoginViaTgResponse, error)
 	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
 	IsAdmin(context.Context, *IsAdminRequest) (*IsAdminResponse, error)
 	AuthCheck(context.Context, *AuthCheckRequest) (*AuthCheckResponse, error)
+	UpdateUserInfo(context.Context, *UpdateUserInfoRequest) (*UpdateUserInfoResponse, error)
+	CheckOTPAndLogIn(context.Context, *CheckOTPAndLogInRequest) (*CheckOTPAndLogInResponse, error)
 	mustEmbedUnimplementedAuthServer()
 }
 
@@ -120,6 +159,9 @@ func (UnimplementedAuthServer) RegisterUser(context.Context, *RegisterUserReques
 func (UnimplementedAuthServer) LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoginUser not implemented")
 }
+func (UnimplementedAuthServer) LoginViaTg(context.Context, *LoginViaTgRequest) (*LoginViaTgResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LoginViaTg not implemented")
+}
 func (UnimplementedAuthServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefreshToken not implemented")
 }
@@ -128,6 +170,12 @@ func (UnimplementedAuthServer) IsAdmin(context.Context, *IsAdminRequest) (*IsAdm
 }
 func (UnimplementedAuthServer) AuthCheck(context.Context, *AuthCheckRequest) (*AuthCheckResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthCheck not implemented")
+}
+func (UnimplementedAuthServer) UpdateUserInfo(context.Context, *UpdateUserInfoRequest) (*UpdateUserInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserInfo not implemented")
+}
+func (UnimplementedAuthServer) CheckOTPAndLogIn(context.Context, *CheckOTPAndLogInRequest) (*CheckOTPAndLogInResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckOTPAndLogIn not implemented")
 }
 func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
 func (UnimplementedAuthServer) testEmbeddedByValue()              {}
@@ -186,6 +234,24 @@ func _Auth_LoginUser_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auth_LoginViaTg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginViaTgRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).LoginViaTg(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auth_LoginViaTg_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).LoginViaTg(ctx, req.(*LoginViaTgRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Auth_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RefreshTokenRequest)
 	if err := dec(in); err != nil {
@@ -240,6 +306,42 @@ func _Auth_AuthCheck_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auth_UpdateUserInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateUserInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).UpdateUserInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auth_UpdateUserInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).UpdateUserInfo(ctx, req.(*UpdateUserInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Auth_CheckOTPAndLogIn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckOTPAndLogInRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).CheckOTPAndLogIn(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auth_CheckOTPAndLogIn_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).CheckOTPAndLogIn(ctx, req.(*CheckOTPAndLogInRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auth_ServiceDesc is the grpc.ServiceDesc for Auth service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -256,6 +358,10 @@ var Auth_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Auth_LoginUser_Handler,
 		},
 		{
+			MethodName: "LoginViaTg",
+			Handler:    _Auth_LoginViaTg_Handler,
+		},
+		{
 			MethodName: "RefreshToken",
 			Handler:    _Auth_RefreshToken_Handler,
 		},
@@ -266,6 +372,14 @@ var Auth_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AuthCheck",
 			Handler:    _Auth_AuthCheck_Handler,
+		},
+		{
+			MethodName: "UpdateUserInfo",
+			Handler:    _Auth_UpdateUserInfo_Handler,
+		},
+		{
+			MethodName: "CheckOTPAndLogIn",
+			Handler:    _Auth_CheckOTPAndLogIn_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

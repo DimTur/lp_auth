@@ -5,9 +5,11 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/DimTur/lp_auth/internal/app"
+	"github.com/DimTur/lp_auth/internal/app/consumer"
 	"github.com/DimTur/lp_auth/internal/config"
 	"github.com/DimTur/lp_auth/internal/services/rabbitmq"
 	"github.com/DimTur/lp_auth/internal/services/storage/mongodb"
@@ -28,6 +30,7 @@ func NewServeCmd() *cobra.Command {
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 			defer cancel()
+			var wg sync.WaitGroup
 
 			cfg, err := config.Parse(configPath)
 			if err != nil {
@@ -140,6 +143,15 @@ func NewServeCmd() *cobra.Command {
 				return err
 			}
 
+			consumer := consumer.NewConsumeOTP(rmq, storage, log)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := consumer.Start(ctx, cfg.RabbitMQ.ChatIDQueue.Name); err != nil {
+					log.Error("failed to start chat_id consumer", slog.Any("err", err))
+				}
+			}()
+
 			grpcCloser, err := application.GRPCSrv.Run()
 			if err != nil {
 				return err
@@ -147,6 +159,7 @@ func NewServeCmd() *cobra.Command {
 
 			log.Info("server listening:", slog.Any("port", cfg.GRPCServer.Address))
 			<-ctx.Done()
+			wg.Wait()
 
 			rmq.Close()
 			grpcCloser()

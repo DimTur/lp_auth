@@ -38,9 +38,14 @@ type RabbitMQ struct {
 	Password      string      `yaml:"password"`
 	Host          string      `yaml:"host"`
 	Port          int         `yaml:"port"`
+	ChatIDQueue   ChatIDQueue `yaml:"chat_id_queue"`
 	OTPExchange   OTPExchange `yaml:"otp_exchange"`
 	OTPQueue      OTPQueue    `yaml:"otp_queue"`
 	OTPRoutingKey string      `yaml:"otp_routing_key"`
+}
+
+type ChatIDQueue struct {
+	Name string `yaml:"name"`
 }
 
 type OTPExchange struct {

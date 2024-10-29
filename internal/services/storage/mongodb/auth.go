@@ -38,7 +38,27 @@ func (m *MClient) FindUserByEmail(ctx context.Context, email string) (*models.Us
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
 
 	filter := bson.M{"email": email}
-	fmt.Printf("Filter: %v\n", filter)
+
+	var user models.User
+	err := coll.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+		}
+
+		fmt.Printf("Decode error: %v\n", err)
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return &user, nil
+}
+
+func (m *MClient) FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error) {
+	const op = "storage.mongodb.FindUserByEmail"
+
+	coll := m.client.Database(m.dbname).Collection(CollAuth)
+
+	filter := bson.M{"tg_link": tgLink}
 
 	var user models.User
 	err := coll.FindOne(ctx, filter).Decode(&user)
@@ -58,7 +78,9 @@ func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateU
 	const op = "storage.mongodb.UpdateUserInfo"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-	_, err := coll.UpdateByID(ctx, userInfo.ID, userInfo)
+	_, err := coll.UpdateByID(ctx, userInfo.ID, bson.M{
+		"$set": userInfo,
+	})
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return fmt.Errorf("%s: %w", op, storage.ErrInvalidCredentials)

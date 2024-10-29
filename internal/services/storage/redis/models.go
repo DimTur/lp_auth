@@ -13,13 +13,18 @@ type CreateRefreshToken struct {
 }
 
 type RefreshTokenToRedis struct {
-	Token  string `json:"token" redis:"token"`
-	UserID string `json:"user_id" redis:"user_id"`
+	UserID string `redis:"user_id"`
+	Token  string `redis:"refresh_token"`
 }
 
 type RefreshToken struct {
-	Token  string             `json:"token" redis:"token"`
-	UserID primitive.ObjectID `json:"user_id" redis:"user_id"`
+	UserID string `json:"user_id" redis:"user_id"`
+	Token  string `json:"token" redis:"refresh_token"`
+}
+
+type RefreshTokenFromRedis struct {
+	UserID primitive.ObjectID `json:"user_id"`
+	Token  string             `json:"token"`
 }
 
 type CreateOTP struct {
