@@ -37,7 +37,7 @@ func (c *RMQClient) BindQueueToExchange(queueName, exchangeName, routingKey stri
 	)
 }
 
-// Publish Отправляет сообщение в обменник
+// Publish send message to exchange
 func (c *RMQClient) Publish(ctx context.Context, exchange, routingKey string, body []byte) error {
 	return c.publishWithContext(ctx, exchange, routingKey, body)
 }

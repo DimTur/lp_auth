@@ -23,10 +23,10 @@ type RefreshToken struct {
 }
 
 type CreateOTP struct {
-	UserID    primitive.ObjectID `json:"user_id" redis:"user_id" validate:"required"`
-	Code      string             `json:"code" redis:"code" validate:"required"`
-	ExpiresAt time.Time          `json:"expires_at" redis:"expires_at" validate:"required"`
-	Used      bool               `json:"used" redis:"used" validate:"required"`
+	UserID    string    `json:"user_id" redis:"user_id" validate:"required"`
+	Code      string    `json:"code" redis:"code" validate:"required"`
+	ExpiresAt time.Time `json:"expires_at" redis:"expires_at" validate:"required"`
+	Used      bool      `json:"used" redis:"used" validate:"required"`
 }
 
 type UserOTP struct {

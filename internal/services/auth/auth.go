@@ -192,7 +192,7 @@ func (ah *AuthHandlers) SingInViaTg(ctx context.Context, login *models.SingInVia
 
 	if chatID != "" {
 		otp := &redis.CreateOTP{
-			UserID:    user.ID,
+			UserID:    user.ID.Hex(),
 			Code:      otp.RandOTP(),
 			ExpiresAt: time.Now(),
 			Used:      false,

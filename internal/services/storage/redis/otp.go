@@ -19,7 +19,7 @@ func (r *RedisClient) SaveOTPToRedis(ctx context.Context, otp *CreateOTP) error 
 	}
 
 	hashFields := map[string]interface{}{
-		"user_id": otp.UserID.Hex(),
+		"user_id": otp.UserID,
 		"used":    otp.Used,
 	}
 

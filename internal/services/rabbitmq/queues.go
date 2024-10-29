@@ -24,12 +24,12 @@ func (c *RMQClient) DeclareQueue(
 	)
 }
 
-// PublishToQueue Отправляет сообщение в очередь
+// PublishToQueue send message to queue
 func (c *RMQClient) PublishToQueue(ctx context.Context, queueName string, body []byte) error {
 	return c.publishWithContext(ctx, "", queueName, body)
 }
 
-// publishWithContext отправляет сообщение с использованием контекста
+// publishWithContext send message with context
 func (c *RMQClient) publishWithContext(ctx context.Context, exchange, routingKey string, body []byte) error {
 	errChan := make(chan error, 1)
 

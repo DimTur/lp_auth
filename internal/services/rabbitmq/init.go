@@ -39,7 +39,7 @@ func NewClient(url string) (*RMQClient, error) {
 	return client, nil
 }
 
-// Close закрывает соединение и каналы
+// Close close conn and channels
 func (c *RMQClient) Close() {
 	if c.publishCH != nil {
 		if err := c.publishCH.Close(); err != nil {

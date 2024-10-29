@@ -34,18 +34,12 @@ func NewServeCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Username:", cfg.Storage.UserName)
-			fmt.Println("Password:", cfg.Storage.Password)
-			fmt.Println("DB Name:", cfg.Storage.DbName)
-
 			uri := fmt.Sprintf(
 				"mongodb://%s:%s@localhost:27017/%s?authSource=admin",
 				cfg.Storage.UserName,
 				cfg.Storage.Password,
 				cfg.Storage.DbName,
 			)
-
-			fmt.Println(uri)
 
 			storage, err := mongodb.NewMongoClient(ctx, uri, cfg.Storage.DbName)
 			if err != nil {

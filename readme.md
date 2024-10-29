@@ -7,7 +7,7 @@
 
 **Start service**
 
-    go run cmd/main.go serve --config=./config/config.yml
+    go run cmd/main.go serve --config=./config/config.yaml
 
 
 docker compose up -d
