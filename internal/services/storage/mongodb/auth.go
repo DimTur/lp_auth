@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	CollAuth   = "auth"
+	CollAuth   = "users"
 	CollTokens = "tokens"
 )
 
