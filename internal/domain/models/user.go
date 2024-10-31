@@ -7,19 +7,26 @@ import (
 )
 
 const (
-	UserRoleDefault = "user"
-	UserRoleAdmin   = "admin"
+	UserRoleDefault    = "user"
+	UserRoleAdmin      = "admin"
+	UserRoleGroupAdmin = "group_admin"
 )
 
 type User struct {
-	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Email    string             `json:"email" bson:"email"`
-	PassHash []byte             `json:"pass_hash" bson:"pass_hash"`
-	Name     string             `json:"name" bson:"name"`
-	Role     string             `json:"role" bson:"role"`
-	TgLink   string             `json:"tg_link" bson:"tg_link"`
-	Created  time.Time          `json:"created" bson:"created"`
-	Updated  time.Time          `json:"updated" bson:"updated"`
+	ID       string    `json:"id" bson:"_id,omitempty"`
+	Email    string    `json:"email" bson:"email"`
+	PassHash []byte    `json:"pass_hash" bson:"pass_hash"`
+	Name     string    `json:"name" bson:"name"`
+	Role     string    `json:"role" bson:"role"`
+	TgLink   string    `json:"tg_link" bson:"tg_link"`
+	Created  time.Time `json:"created" bson:"created"`
+	Updated  time.Time `json:"updated" bson:"updated"`
+}
+
+type LogInUser struct {
+	ID       string `json:"id" bson:"_id,omitempty"`
+	Email    string `json:"email" bson:"email"`
+	PassHash []byte `json:"pass_hash" bson:"pass_hash"`
 }
 
 type CreateUser struct {
@@ -46,12 +53,12 @@ type DBCreateUser struct {
 }
 
 type DBUpdateUserInfo struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" validate:"required"`
-	Email   string             `bson:"email,omitempty"`
-	Name    string             `bson:"name,omitempty"`
-	TgLink  string             `bson:"tg_link,omitempty"`
-	ChatID  string             `bson:"chat_id,omitempty"`
-	Updated time.Time          `bson:"updated,omitempty"`
+	ID      string    `bson:"_id,omitempty" validate:"required"`
+	Email   string    `bson:"email,omitempty"`
+	Name    string    `bson:"name,omitempty"`
+	TgLink  string    `bson:"tg_link,omitempty"`
+	ChatID  string    `bson:"chat_id,omitempty"`
+	Updated time.Time `bson:"updated,omitempty"`
 }
 
 type UserRole struct {

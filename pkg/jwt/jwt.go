@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var (
@@ -50,10 +49,10 @@ func (j *JWTManager) GetRefreshExpiresIn() time.Duration {
 	return j.refreshExpiresIn
 }
 
-func (j *JWTManager) IssueAccessToken(userID primitive.ObjectID) (string, error) {
+func (j *JWTManager) IssueAccessToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"iss":  j.issuer,
-		"sub":  userID.Hex(),
+		"sub":  userID,
 		"iat":  time.Now().Unix(),
 		"exp":  time.Now().Add(j.accessExpiresIn).Unix(),
 		"type": "access",
@@ -68,10 +67,10 @@ func (j *JWTManager) IssueAccessToken(userID primitive.ObjectID) (string, error)
 	return signed, nil
 }
 
-func (j *JWTManager) IssueRefreshToken(userID primitive.ObjectID) (string, error) {
+func (j *JWTManager) IssueRefreshToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"iss":  j.issuer,
-		"sub":  userID.Hex(),
+		"sub":  userID,
 		"iat":  time.Now().Unix(),
 		"exp":  time.Now().Add(j.refreshExpiresIn).Unix(),
 		"type": "refresh",

@@ -17,7 +17,6 @@ import (
 	"github.com/DimTur/lp_auth/pkg/crypto"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -34,8 +33,8 @@ type UserSaver interface {
 type UserProvider interface {
 	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
 	FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error)
-	GetUserRole(ctx context.Context, userID primitive.ObjectID) (string, error)
-	GetExistChatID(ctx context.Context, userID primitive.ObjectID) (string, error)
+	GetUserRole(ctx context.Context, userID string) (string, error)
+	GetExistChatID(ctx context.Context, userID string) (string, error)
 }
 
 type TokenProvider interface {
@@ -44,7 +43,7 @@ type TokenProvider interface {
 
 type TokenRedisStore interface {
 	SaveRefreshTokenToRedis(ctx context.Context, token *redis.CreateRefreshToken) error
-	FindRefreshToken(ctx context.Context, userID primitive.ObjectID) (*redis.RefreshTokenFromRedis, error)
+	FindRefreshToken(ctx context.Context, userID string) (*redis.RefreshTokenFromRedis, error)
 }
 
 type OTPRedisStore interface {
@@ -59,8 +58,8 @@ type RabbitMQQueues interface {
 }
 
 type JWTManager interface {
-	IssueAccessToken(userID primitive.ObjectID) (string, error)
-	IssueRefreshToken(userID primitive.ObjectID) (string, error)
+	IssueAccessToken(userID string) (string, error)
+	IssueRefreshToken(userID string) (string, error)
 	VerifyToken(tokenString string) (*jwt.Token, error)
 	GetRefreshExpiresIn() time.Duration
 }
@@ -193,7 +192,7 @@ func (ah *AuthHandlers) LogInViaTg(ctx context.Context, login *models.LogInViaTg
 
 	if chatID != "" {
 		otp := &redis.CreateOTP{
-			UserID:    user.ID.Hex(),
+			UserID:    user.ID,
 			Code:      otp.RandOTP(),
 			ExpiresAt: time.Now().Add(time.Minute), // TODO: transfer to config
 			Used:      false,
@@ -291,7 +290,6 @@ func (ah *AuthHandlers) RegisterUser(ctx context.Context, user models.CreateUser
 	}
 
 	newUser := models.DBCreateUser{
-		ID:       primitive.NewObjectID(),
 		Email:    user.Email,
 		PassHash: passHash,
 		Name:     user.Name,
@@ -333,14 +331,8 @@ func (ah *AuthHandlers) UpdateUserInfo(ctx context.Context, userInfo *models.Upd
 
 	log.Info("updating user_info")
 
-	userIdStr, err := primitive.ObjectIDFromHex(userInfo.ID)
-	if err != nil {
-		log.Warn("can't transform to objectID", slog.String("err", err.Error()))
-		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
-	}
-
 	newUserInfo := &models.DBUpdateUserInfo{
-		ID:      userIdStr,
+		ID:      userInfo.ID,
 		Email:   userInfo.Email,
 		Name:    userInfo.Name,
 		TgLink:  userInfo.TgLink,
@@ -383,15 +375,9 @@ func (ah *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 	}
 
-	userIDHex, ok := claims["sub"].(string)
+	userID, ok := claims["sub"].(string)
 	if !ok {
 		log.Error("invalid userID claim")
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-
-	userID, err := primitive.ObjectIDFromHex(userIDHex)
-	if err != nil {
-		log.Error("invalid userID hex")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -404,12 +390,12 @@ func (ah *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (
 }
 
 // IsAdmin checks if user is admin.
-func (ah *AuthHandlers) IsAdmin(ctx context.Context, userID primitive.ObjectID) (bool, error) {
+func (ah *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error) {
 	const op = "auth.IsAdmin"
 
 	log := ah.log.With(
 		slog.String("op", op),
-		slog.String("user_id", userID.Hex()),
+		slog.String("user_id", userID),
 	)
 
 	log.Info("check user is admin")
@@ -472,7 +458,7 @@ func (ah *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*mod
 func (ah *AuthHandlers) generateTokens(
 	ctx context.Context,
 	log *slog.Logger,
-	userID primitive.ObjectID,
+	userID string,
 ) (*models.LogInTokens, error) {
 	// Checks refresh-token exists
 	existingRefreshToken, err := ah.tokenRedisStore.FindRefreshToken(ctx, userID)

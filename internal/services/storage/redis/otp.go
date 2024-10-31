@@ -7,7 +7,6 @@ import (
 
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func (r *RedisClient) SaveOTPToRedis(ctx context.Context, otp *CreateOTP) error {
@@ -45,13 +44,8 @@ func (r *RedisClient) FindOTPCode(ctx context.Context, code string) (*UserOTPFro
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	userIDObj, err := primitive.ObjectIDFromHex(otp.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, storage.ErrUserIdConversion)
-	}
-
 	return &UserOTPFromRedis{
-		UserID: userIDObj,
+		UserID: otp.UserID,
 		Code:   otp.Code,
 		Used:   otp.Used,
 	}, nil

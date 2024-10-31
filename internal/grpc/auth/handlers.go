@@ -9,7 +9,6 @@ import (
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/DimTur/lp_auth/internal/utils/validator"
 	ssov1 "github.com/DimTur/lp_auth/pkg/server/grpc"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,7 +22,7 @@ type AuthHandlers interface {
 	) (*models.LogInTokens, error)
 	RegisterUser(ctx context.Context, user models.CreateUser) error
 	RefreshToken(ctx context.Context, refreshToken string) (string, error)
-	IsAdmin(ctx context.Context, userID primitive.ObjectID) (bool, error)
+	IsAdmin(ctx context.Context, userID string) (bool, error)
 	AuthCheck(ctx context.Context, accessToken string) (*models.AuthCheck, error)
 	LogInViaTg(ctx context.Context, login *models.LogInViaTg) error
 	CheckOTP(ctx context.Context, checkOTP *models.LoginUserOTP) (*models.LogInTokens, error)
@@ -181,12 +180,7 @@ func (s *serverAPI) RefreshToken(ctx context.Context, req *ssov1.RefreshTokenReq
 }
 
 func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
-	userID, err := primitive.ObjectIDFromHex(req.UserId)
-	if err != nil {
-		return nil, status.Error(codes.Internal, "internal error")
-	}
-
-	isAdmin, err := s.auth.IsAdmin(ctx, userID)
+	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			return nil, status.Error(codes.AlreadyExists, "user not found")

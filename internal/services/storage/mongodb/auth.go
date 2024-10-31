@@ -21,6 +21,7 @@ func (m *MClient) SaveUser(ctx context.Context, user *models.DBCreateUser) error
 	const op = "storage.mongodb.SaveUser"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
+	user.ID = primitive.NewObjectID()
 	_, err := coll.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -78,28 +79,53 @@ func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateU
 	const op = "storage.mongodb.UpdateUserInfo"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-	_, err := coll.UpdateByID(ctx, userInfo.ID, bson.M{
-		"$set": userInfo,
-	})
+	objid, err := primitive.ObjectIDFromHex(userInfo.ID)
 	if err != nil {
-		if mongo.IsDuplicateKeyError(err) {
-			return fmt.Errorf("%s: %w", op, storage.ErrInvalidCredentials)
+		return fmt.Errorf("%s: %w", op, storage.ErrObjectID)
+	}
+
+	update := bson.M{}
+	if userInfo.Email != "" {
+		update["email"] = userInfo.Email
+	}
+	if userInfo.Name != "" {
+		update["name"] = userInfo.Name
+	}
+	if userInfo.TgLink != "" {
+		update["tg_link"] = userInfo.TgLink
+	}
+	if !userInfo.Updated.IsZero() {
+		update["updated"] = userInfo.Updated
+	}
+
+	if len(update) > 0 {
+		_, err = coll.UpdateByID(ctx, objid, bson.M{
+			"$set": update,
+		})
+		if err != nil {
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				return fmt.Errorf("%s: %w", op, storage.ErrInvalidCredentials)
+			}
+			return fmt.Errorf("%s: %w", op, err)
 		}
-		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
 }
 
-func (m *MClient) GetUserRole(ctx context.Context, userID primitive.ObjectID) (string, error) {
+func (m *MClient) GetUserRole(ctx context.Context, userID string) (string, error) {
 	const op = "storage.mongodb.GetUserRole"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
+	objid, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, storage.ErrObjectID)
+	}
 
-	filter := bson.M{"_id": userID}
+	filter := bson.M{"_id": objid}
 
 	var userRole models.UserRole
-	err := coll.FindOne(ctx, filter).Decode(&userRole)
+	err = coll.FindOne(ctx, filter).Decode(&userRole)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return "", fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
@@ -115,6 +141,7 @@ func (m *MClient) SaveRefreshTokenToDB(ctx context.Context, token *models.Create
 	const op = "storage.mongodb.SaveRefreshToken"
 
 	coll := m.client.Database(m.dbname).Collection(CollTokens)
+
 	_, err := coll.InsertOne(ctx, token)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -126,15 +153,18 @@ func (m *MClient) SaveRefreshTokenToDB(ctx context.Context, token *models.Create
 	return nil
 }
 
-func (m *MClient) GetExistChatID(ctx context.Context, userID primitive.ObjectID) (string, error) {
+func (m *MClient) GetExistChatID(ctx context.Context, userID string) (string, error) {
 	const op = "storage.mongodb.GetExistChatID"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-
-	filter := bson.M{"_id": userID}
+	objid, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, storage.ErrObjectID)
+	}
+	filter := bson.M{"_id": objid}
 
 	var chatID models.UserChatID
-	err := coll.FindOne(ctx, filter).Decode(&chatID)
+	err = coll.FindOne(ctx, filter).Decode(&chatID)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return "", fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)

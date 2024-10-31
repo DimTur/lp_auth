@@ -2,14 +2,12 @@ package redis
 
 import (
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type CreateRefreshToken struct {
-	UserID    primitive.ObjectID `json:"user_id" redis:"user_id" validate:"required"`
-	Token     string             `json:"token" redis:"token" validate:"required"`
-	ExpiresAt time.Time          `json:"expires_at" redis:"expires_at" validate:"required"`
+	UserID    string    `json:"user_id" redis:"user_id" validate:"required"`
+	Token     string    `json:"token" redis:"token" validate:"required"`
+	ExpiresAt time.Time `json:"expires_at" redis:"expires_at" validate:"required"`
 }
 
 type RefreshTokenToRedis struct {
@@ -23,8 +21,8 @@ type RefreshToken struct {
 }
 
 type RefreshTokenFromRedis struct {
-	UserID primitive.ObjectID `json:"user_id"`
-	Token  string             `json:"token"`
+	UserID string `json:"user_id"`
+	Token  string `json:"token"`
 }
 
 type CreateOTP struct {
@@ -41,7 +39,7 @@ type UserOTP struct {
 }
 
 type UserOTPFromRedis struct {
-	UserID primitive.ObjectID `json:"user_id" redis:"user_id"`
-	Code   string             `json:"code" redis:"code"`
-	Used   bool               `json:"used" redis:"used"`
+	UserID string `json:"user_id" redis:"user_id"`
+	Code   string `json:"code" redis:"code"`
+	Used   bool   `json:"used" redis:"used"`
 }
