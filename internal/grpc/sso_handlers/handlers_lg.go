@@ -48,20 +48,27 @@ func (s *serverAPI) GetLearningGroupByID(ctx context.Context, req *ssov1.GetLear
 	}
 
 	response := &ssov1.GetLearningGroupByIDResponse{
-		Id:         lg.ID,
-		Name:       lg.Name,
-		CreatedBy:  lg.CreatedBy,
-		ModifiedBy: lg.ModifiedBy,
-		Learners:   make([]*ssov1.Learner, len(lg.Learners)),
+		Id:          lg.ID,
+		Name:        lg.Name,
+		CreatedBy:   lg.CreatedBy,
+		ModifiedBy:  lg.ModifiedBy,
+		Learners:    make([]*ssov1.Learner, len(lg.Learners)),
+		GroupAdmins: make([]*ssov1.GroupAdmins, len(lg.GroupAdmins)),
 	}
 
 	for i, learner := range lg.Learners {
 		response.Learners[i] = &ssov1.Learner{
-			Id:           learner.ID,
-			Email:        learner.Email,
-			Name:         learner.Name,
-			IsAdmin:      learner.IsAdmin,
-			IsGroupAdmin: learner.IsGroupAdmin,
+			Id:    learner.ID,
+			Email: learner.Email,
+			Name:  learner.Name,
+		}
+	}
+
+	for i, admin := range lg.GroupAdmins {
+		response.GroupAdmins[i] = &ssov1.GroupAdmins{
+			Id:    admin.ID,
+			Email: admin.Email,
+			Name:  admin.Name,
 		}
 	}
 
@@ -70,6 +77,7 @@ func (s *serverAPI) GetLearningGroupByID(ctx context.Context, req *ssov1.GetLear
 
 func (s *serverAPI) UpdateLearningGroup(ctx context.Context, req *ssov1.UpdateLearningGroupRequest) (*ssov1.UpdateLearningGroupResponse, error) {
 	lg := models.UpdateLearningGroup{
+		ID:          req.GetId(),
 		Name:        req.GetName(),
 		ModifiedBy:  req.GetModifiedBy(),
 		GroupAdmins: req.GetGroupAdmins(),
@@ -128,4 +136,19 @@ func (s *serverAPI) GetLearningGroups(ctx context.Context, req *ssov1.GetLearnin
 	}
 
 	return response, nil
+}
+
+func (s *serverAPI) IsGroupAdmin(ctx context.Context, req *ssov1.IsGroupAdminRequest) (*ssov1.IsGroupAdminResponse, error) {
+	isGroupAdmin, err := s.lgh.IsGroupAdmin(ctx, req.GetUserId(), req.GetLearningGroupId())
+	if err != nil {
+		if errors.Is(err, learninggroup.ErrGroupNotFound) {
+			return nil, status.Error(codes.NotFound, "learning group not found")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.IsGroupAdminResponse{
+		IsGroupAdmin: isGroupAdmin,
+	}, nil
 }

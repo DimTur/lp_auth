@@ -290,13 +290,12 @@ func (ah *AuthHandlers) RegisterUser(ctx context.Context, user models.CreateUser
 	}
 
 	newUser := models.DBCreateUser{
-		Email:        user.Email,
-		PassHash:     passHash,
-		Name:         user.Name,
-		IsAdmin:      false,
-		IsGroupAdmin: false,
-		Created:      time.Now(),
-		Updated:      time.Now(),
+		Email:    user.Email,
+		PassHash: passHash,
+		Name:     user.Name,
+		IsAdmin:  false,
+		Created:  time.Now(),
+		Updated:  time.Now(),
 	}
 	err = ah.usrSaver.SaveUser(ctx, &newUser)
 	if err != nil {
@@ -337,6 +336,7 @@ func (ah *AuthHandlers) UpdateUserInfo(ctx context.Context, userInfo *models.Upd
 		Email:   userInfo.Email,
 		Name:    userInfo.Name,
 		TgLink:  userInfo.TgLink,
+		IsAdmin: &userInfo.IsAdmin,
 		Updated: time.Now(),
 	}
 	err = ah.usrSaver.UpdateUserInfo(ctx, newUserInfo)

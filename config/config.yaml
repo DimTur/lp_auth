@@ -13,24 +13,25 @@ rabbit_mq:
   port: 5672
   chat_id_queue:
     name: chat_id
-  otp_exchange:
-    name: otp
-    kind: fanout
-    durable: false
-    auto_deleted: false
-    internal: false
-    no_wait: true
-    args:
-      alternate_exchange: alternate_exchange_otp
-  otp_queue:
-    name: otp
-    durable: false
-    auto_deleted: false
-    exclusive: false
-    no_wait: true
-    args:
-      x_message_ttl: 60000
-  otp_routing_key: otp
+  otp:
+    otp_exchange:
+      name: otp
+      kind: fanout
+      durable: false
+      auto_deleted: false
+      internal: false
+      no_wait: true
+      args:
+        alternate_exchange: alternate_exchange_otp
+    otp_queue:
+      name: otp
+      durable: false
+      auto_deleted: false
+      exclusive: false
+      no_wait: true
+      args:
+        x_message_ttl: 60000
+    otp_routing_key: otp
 redis:
   host: localhost
   port: 6379

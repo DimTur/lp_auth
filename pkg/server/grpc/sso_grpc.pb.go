@@ -32,6 +32,7 @@ const (
 	Sso_UpdateLearningGroup_FullMethodName  = "/auth.v1.Sso/UpdateLearningGroup"
 	Sso_DeleteLearningGroup_FullMethodName  = "/auth.v1.Sso/DeleteLearningGroup"
 	Sso_GetLearningGroups_FullMethodName    = "/auth.v1.Sso/GetLearningGroups"
+	Sso_IsGroupAdmin_FullMethodName         = "/auth.v1.Sso/IsGroupAdmin"
 )
 
 // SsoClient is the client API for Sso service.
@@ -51,6 +52,7 @@ type SsoClient interface {
 	UpdateLearningGroup(ctx context.Context, in *UpdateLearningGroupRequest, opts ...grpc.CallOption) (*UpdateLearningGroupResponse, error)
 	DeleteLearningGroup(ctx context.Context, in *DeleteLearningGroupRequest, opts ...grpc.CallOption) (*DeleteLearningGroupResponse, error)
 	GetLearningGroups(ctx context.Context, in *GetLearningGroupsRequest, opts ...grpc.CallOption) (*GetLearningGroupsResponse, error)
+	IsGroupAdmin(ctx context.Context, in *IsGroupAdminRequest, opts ...grpc.CallOption) (*IsGroupAdminResponse, error)
 }
 
 type ssoClient struct {
@@ -191,6 +193,16 @@ func (c *ssoClient) GetLearningGroups(ctx context.Context, in *GetLearningGroups
 	return out, nil
 }
 
+func (c *ssoClient) IsGroupAdmin(ctx context.Context, in *IsGroupAdminRequest, opts ...grpc.CallOption) (*IsGroupAdminResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IsGroupAdminResponse)
+	err := c.cc.Invoke(ctx, Sso_IsGroupAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SsoServer is the server API for Sso service.
 // All implementations must embed UnimplementedSsoServer
 // for forward compatibility.
@@ -208,6 +220,7 @@ type SsoServer interface {
 	UpdateLearningGroup(context.Context, *UpdateLearningGroupRequest) (*UpdateLearningGroupResponse, error)
 	DeleteLearningGroup(context.Context, *DeleteLearningGroupRequest) (*DeleteLearningGroupResponse, error)
 	GetLearningGroups(context.Context, *GetLearningGroupsRequest) (*GetLearningGroupsResponse, error)
+	IsGroupAdmin(context.Context, *IsGroupAdminRequest) (*IsGroupAdminResponse, error)
 	mustEmbedUnimplementedSsoServer()
 }
 
@@ -256,6 +269,9 @@ func (UnimplementedSsoServer) DeleteLearningGroup(context.Context, *DeleteLearni
 }
 func (UnimplementedSsoServer) GetLearningGroups(context.Context, *GetLearningGroupsRequest) (*GetLearningGroupsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLearningGroups not implemented")
+}
+func (UnimplementedSsoServer) IsGroupAdmin(context.Context, *IsGroupAdminRequest) (*IsGroupAdminResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IsGroupAdmin not implemented")
 }
 func (UnimplementedSsoServer) mustEmbedUnimplementedSsoServer() {}
 func (UnimplementedSsoServer) testEmbeddedByValue()             {}
@@ -512,6 +528,24 @@ func _Sso_GetLearningGroups_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Sso_IsGroupAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IsGroupAdminRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SsoServer).IsGroupAdmin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Sso_IsGroupAdmin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SsoServer).IsGroupAdmin(ctx, req.(*IsGroupAdminRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Sso_ServiceDesc is the grpc.ServiceDesc for Sso service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -570,6 +604,10 @@ var Sso_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetLearningGroups",
 			Handler:    _Sso_GetLearningGroups_Handler,
+		},
+		{
+			MethodName: "IsGroupAdmin",
+			Handler:    _Sso_IsGroupAdmin_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

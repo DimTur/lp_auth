@@ -53,15 +53,14 @@ func (m *MClient) FindUserByEmail(ctx context.Context, email string) (*models.Us
 	}
 
 	return &models.User{
-		ID:           userDB.ID,
-		Email:        userDB.Email,
-		PassHash:     userDB.PassHash,
-		Name:         userDB.Name,
-		IsAdmin:      userDB.IsAdmin,
-		IsGroupAdmin: userDB.IsGroupAdmin,
-		TgLink:       userDB.TgLink,
-		Created:      userDB.Created,
-		Updated:      userDB.Updated,
+		ID:       userDB.ID,
+		Email:    userDB.Email,
+		PassHash: userDB.PassHash,
+		Name:     userDB.Name,
+		IsAdmin:  userDB.IsAdmin,
+		TgLink:   userDB.TgLink,
+		Created:  userDB.Created,
+		Updated:  userDB.Updated,
 	}, nil
 }
 
@@ -100,9 +99,6 @@ func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateU
 	}
 	if userInfo.IsAdmin != nil {
 		update["is_admin"] = userInfo.IsAdmin
-	}
-	if userInfo.IsGroupAdmin != nil {
-		update["is_group_admin"] = userInfo.IsGroupAdmin
 	}
 	if userInfo.TgLink != "" {
 		update["tg_link"] = userInfo.TgLink

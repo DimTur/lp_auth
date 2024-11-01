@@ -35,6 +35,7 @@ type LGHAndlers interface {
 	GetLGroupsByID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
 	UpdateLearningGroup(ctx context.Context, lg *models.UpdateLearningGroup) error
 	DeleteLearningGroup(ctx context.Context, id string) error
+	IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error)
 }
 
 type serverAPI struct {
@@ -125,10 +126,11 @@ func (s *serverAPI) CheckOTPAndLogIn(ctx context.Context, req *ssov1.CheckOTPAnd
 
 func (s *serverAPI) UpdateUserInfo(ctx context.Context, req *ssov1.UpdateUserInfoRequest) (*ssov1.UpdateUserInfoResponse, error) {
 	userInfo := &models.UpdateUserInfo{
-		ID:     req.GetId(),
-		Email:  req.GetEmail(),
-		Name:   req.GetName(),
-		TgLink: req.GetTgLink(),
+		ID:      req.GetId(),
+		Email:   req.GetEmail(),
+		Name:    req.GetName(),
+		TgLink:  req.GetTgLink(),
+		IsAdmin: req.GetIsAdmin(),
 	}
 
 	if err := s.auth.UpdateUserInfo(ctx, userInfo); err != nil {

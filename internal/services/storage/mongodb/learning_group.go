@@ -45,6 +45,12 @@ func (m *MClient) GetLgByID(ctx context.Context, id string) (*models.LearningGro
 			{Key: "foreignField", Value: "_id"},
 			{Key: "as", Value: "learners"},
 		}}},
+		{{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: CollAuth},
+			{Key: "localField", Value: "group_admins"},
+			{Key: "foreignField", Value: "_id"},
+			{Key: "as", Value: "group_admins"},
+		}}},
 	}
 
 	cursor, err := coll.Aggregate(ctx, pipeline)
@@ -67,14 +73,20 @@ func (m *MClient) GetLgByID(ctx context.Context, id string) (*models.LearningGro
 		learners[i] = models.GroupUser(learner)
 	}
 
+	groupAdmins := make([]models.GroupUser, len(lgDB.GroupAdmins))
+	for i, admin := range lgDB.GroupAdmins {
+		groupAdmins[i] = models.GroupUser(admin)
+	}
+
 	return &models.LearningGroup{
-		ID:         lgDB.ID,
-		Name:       lgDB.Name,
-		CreatedBy:  lgDB.CreatedBy,
-		ModifiedBy: lgDB.ModifiedBy,
-		Created:    lgDB.Created,
-		Updated:    lgDB.Updated,
-		Learners:   learners,
+		ID:          lgDB.ID,
+		Name:        lgDB.Name,
+		CreatedBy:   lgDB.CreatedBy,
+		ModifiedBy:  lgDB.ModifiedBy,
+		Created:     lgDB.Created,
+		Updated:     lgDB.Updated,
+		Learners:    learners,
+		GroupAdmins: groupAdmins,
 	}, nil
 }
 
@@ -108,6 +120,7 @@ func (m *MClient) UpdateLgByID(ctx context.Context, lg *models.DBUpdateLearningG
 	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
 
 	update := bson.M{}
+	addToSet := bson.M{}
 	if lg.Name != "" {
 		update["name"] = lg.Name
 	}
@@ -118,16 +131,22 @@ func (m *MClient) UpdateLgByID(ctx context.Context, lg *models.DBUpdateLearningG
 		update["updated"] = lg.Updated
 	}
 	if len(lg.GroupAdmins) > 0 {
-		update["group_admins"] = lg.GroupAdmins
+		addToSet["group_admins"] = bson.M{"$each": lg.GroupAdmins}
 	}
 	if len(lg.Learners) > 0 {
-		update["learners"] = lg.Learners
+		addToSet["learners"] = bson.M{"$each": lg.Learners}
 	}
 
+	updateQuery := bson.M{}
 	if len(update) > 0 {
-		_, err := coll.UpdateByID(ctx, lg.ID, bson.M{
-			"$set": update,
-		})
+		updateQuery["$set"] = update
+	}
+	if len(addToSet) > 0 {
+		updateQuery["$addToSet"] = addToSet
+	}
+
+	if len(updateQuery) > 0 {
+		_, err := coll.UpdateByID(ctx, lg.ID, updateQuery)
 		if err != nil {
 			if errors.Is(err, mongo.ErrNoDocuments) {
 				return fmt.Errorf("%s: %w", op, storage.ErrLgNotFound)
@@ -143,12 +162,30 @@ func (m *MClient) DeleteLgByID(ctx context.Context, id string) error {
 	const op = "storage.mongodb.DeleteLgByID"
 
 	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
-	objid, _ := primitive.ObjectIDFromHex(id)
-	filter := bson.M{"_id": objid}
+	filter := bson.M{"_id": id}
 	_, err := coll.DeleteOne(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
+}
+
+func (m *MClient) IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error) {
+	const op = "storage.mongodb.IsGroupAdmin"
+
+	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
+	filter := bson.M{
+		"_id": lgID,
+		"group_admins": bson.M{
+			"$in": []string{uID},
+		},
+	}
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", op, storage.ErrLgNotFound)
+	}
+	defer cursor.Close(ctx)
+
+	return true, nil
 }

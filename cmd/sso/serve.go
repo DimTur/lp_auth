@@ -91,34 +91,34 @@ func NewServeCmd() *cobra.Command {
 
 			// Declare OTP exchange
 			if err := rmq.DeclareExchange(
-				cfg.RabbitMQ.OTPExchange.Name,
-				cfg.RabbitMQ.OTPExchange.Kind,
-				cfg.RabbitMQ.OTPExchange.Durable,
-				cfg.RabbitMQ.OTPExchange.AutoDeleted,
-				cfg.RabbitMQ.OTPExchange.Internal,
-				cfg.RabbitMQ.OTPExchange.NoWait,
-				cfg.RabbitMQ.OTPExchange.Args.ToMap(),
+				cfg.RabbitMQ.OTP.OTPExchange.Name,
+				cfg.RabbitMQ.OTP.OTPExchange.Kind,
+				cfg.RabbitMQ.OTP.OTPExchange.Durable,
+				cfg.RabbitMQ.OTP.OTPExchange.AutoDeleted,
+				cfg.RabbitMQ.OTP.OTPExchange.Internal,
+				cfg.RabbitMQ.OTP.OTPExchange.NoWait,
+				cfg.RabbitMQ.OTP.OTPExchange.Args.ToMap(),
 			); err != nil {
 				log.Error("failed to declare OTP exchange", slog.Any("err", err))
 			}
 
 			// Declare OTP Queue
 			if _, err := rmq.DeclareQueue(
-				cfg.RabbitMQ.OTPQueue.Name,
-				cfg.RabbitMQ.OTPQueue.Durable,
-				cfg.RabbitMQ.OTPQueue.AutoDeleted,
-				cfg.RabbitMQ.OTPQueue.Exclusive,
-				cfg.RabbitMQ.OTPQueue.NoWait,
-				cfg.RabbitMQ.OTPQueue.Args.ToMap(),
+				cfg.RabbitMQ.OTP.OTPQueue.Name,
+				cfg.RabbitMQ.OTP.OTPQueue.Durable,
+				cfg.RabbitMQ.OTP.OTPQueue.AutoDeleted,
+				cfg.RabbitMQ.OTP.OTPQueue.Exclusive,
+				cfg.RabbitMQ.OTP.OTPQueue.NoWait,
+				cfg.RabbitMQ.OTP.OTPQueue.Args.ToMap(),
 			); err != nil {
 				log.Error("failed to declare OTP queue", slog.Any("err", err))
 			}
 
 			// Bind OTP queue to OTP exchange
 			if err := rmq.BindQueueToExchange(
-				cfg.RabbitMQ.OTPQueue.Name,
-				cfg.RabbitMQ.OTPExchange.Name,
-				cfg.RabbitMQ.OTPRoutingKey,
+				cfg.RabbitMQ.OTP.OTPQueue.Name,
+				cfg.RabbitMQ.OTP.OTPExchange.Name,
+				cfg.RabbitMQ.OTP.OTPRoutingKey,
 			); err != nil {
 				log.Error("failed to bind OTP queue", slog.Any("err", err))
 			}

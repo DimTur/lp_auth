@@ -34,21 +34,42 @@ type Redis struct {
 }
 
 type RabbitMQ struct {
-	UserName      string      `yaml:"username"`
-	Password      string      `yaml:"password"`
-	Host          string      `yaml:"host"`
-	Port          int         `yaml:"port"`
-	ChatIDQueue   ChatIDQueue `yaml:"chat_id_queue"`
-	OTPExchange   OTPExchange `yaml:"otp_exchange"`
-	OTPQueue      OTPQueue    `yaml:"otp_queue"`
-	OTPRoutingKey string      `yaml:"otp_routing_key"`
+	UserName    string      `yaml:"username"`
+	Password    string      `yaml:"password"`
+	Host        string      `yaml:"host"`
+	Port        int         `yaml:"port"`
+	ChatIDQueue ChatIDQueue `yaml:"chat_id_queue"`
+	OTP         OTP         `yaml:"otp"`
+	Role        Role        `yaml:"role"`
 }
 
 type ChatIDQueue struct {
 	Name string `yaml:"name"`
 }
 
+type OTP struct {
+	OTPExchange   OTPExchange `yaml:"otp_exchange"`
+	OTPQueue      OTPQueue    `yaml:"otp_queue"`
+	OTPRoutingKey string      `yaml:"otp_routing_key"`
+}
+
+type Role struct {
+	RoleExchange   OTPExchange `yaml:"role_exchange"`
+	RoleQueue      OTPQueue    `yaml:"role_queue"`
+	RoleRoutingKey string      `yaml:"role_routing_key"`
+}
+
 type OTPExchange struct {
+	Name        string       `yaml:"name"`
+	Kind        string       `yaml:"kind"`
+	Durable     bool         `yaml:"durable"`
+	AutoDeleted bool         `yaml:"auto_deleted"`
+	Internal    bool         `yaml:"internal"`
+	NoWait      bool         `yaml:"no_wait"`
+	Args        ExchangeArgs `yaml:"args"`
+}
+
+type RoleExchange struct {
 	Name        string       `yaml:"name"`
 	Kind        string       `yaml:"kind"`
 	Durable     bool         `yaml:"durable"`
@@ -63,6 +84,15 @@ type ExchangeArgs struct {
 }
 
 type OTPQueue struct {
+	Name        string    `yaml:"name"`
+	Durable     bool      `yaml:"durable"`
+	AutoDeleted bool      `yaml:"auto_deleted"`
+	Exclusive   bool      `yaml:"exclusive"`
+	NoWait      bool      `yaml:"no_wait"`
+	Args        QueueArgs `yaml:"args"`
+}
+
+type RoleQueue struct {
 	Name        string    `yaml:"name"`
 	Durable     bool      `yaml:"durable"`
 	AutoDeleted bool      `yaml:"auto_deleted"`

@@ -5,13 +5,14 @@ import (
 )
 
 type LearningGroup struct {
-	ID         string      `json:"id" bson:"_id"`
-	Name       string      `json:"name" bson:"name"`
-	CreatedBy  string      `json:"created_by" bson:"created_by"`
-	ModifiedBy string      `json:"modified_by" bson:"modified_by"`
-	Created    time.Time   `json:"created" bson:"created"`
-	Updated    time.Time   `json:"updated" bson:"updated"`
-	Learners   []GroupUser `json:"learners" bson:"learners"`
+	ID          string      `json:"id" bson:"_id"`
+	Name        string      `json:"name" bson:"name"`
+	CreatedBy   string      `json:"created_by" bson:"created_by"`
+	ModifiedBy  string      `json:"modified_by" bson:"modified_by"`
+	Created     time.Time   `json:"created" bson:"created"`
+	Updated     time.Time   `json:"updated" bson:"updated"`
+	Learners    []GroupUser `json:"learners" bson:"learners"`
+	GroupAdmins []GroupUser `json:"group_admins" bson:"group_admins"`
 }
 
 type LearningGroupShort struct {
@@ -40,11 +41,9 @@ type UpdateLearningGroup struct {
 }
 
 type GroupUser struct {
-	ID           string `json:"_id"`
-	Email        string `json:"email"`
-	Name         string `json:"name"`
-	IsAdmin      bool   `json:"is_admin"`
-	IsGroupAdmin bool   `json:"is_group_admin"`
+	ID    string `json:"_id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
 type DBCreateLearningGroup struct {
@@ -68,19 +67,18 @@ type DBUpdateLearningGroup struct {
 }
 
 type DBLearningGroup struct {
-	ID         string        `bson:"_id"`
-	Name       string        `bson:"name"`
-	CreatedBy  string        `bson:"created_by"`
-	ModifiedBy string        `bson:"modified_by"`
-	Created    time.Time     `bson:"created"`
-	Updated    time.Time     `bson:"updated"`
-	Learners   []DBGroupUser `bson:"learners"`
+	ID          string        `bson:"_id"`
+	Name        string        `bson:"name"`
+	CreatedBy   string        `bson:"created_by"`
+	ModifiedBy  string        `bson:"modified_by"`
+	Created     time.Time     `bson:"created"`
+	Updated     time.Time     `bson:"updated"`
+	Learners    []DBGroupUser `bson:"learners"`
+	GroupAdmins []DBGroupUser `bson:"group_admins"`
 }
 
 type DBGroupUser struct {
-	ID           string `bson:"_id"`
-	Email        string `bson:"email"`
-	Name         string `bson:"name"`
-	IsAdmin      bool   `bson:"is_admin"`
-	IsGroupAdmin bool   `bson:"is_group_admin"`
+	ID    string `bson:"_id"`
+	Email string `bson:"email"`
+	Name  string `bson:"name"`
 }

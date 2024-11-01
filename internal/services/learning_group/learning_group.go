@@ -21,6 +21,7 @@ type GroupSaver interface {
 type GroupeProvider interface {
 	GetLgByID(ctx context.Context, id string) (*models.LearningGroup, error)
 	GetLGroupsByUserID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
+	IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error)
 }
 
 type GroupeDel interface {
@@ -97,11 +98,9 @@ func (lgh *LgHanglers) CreateLearningGroup(ctx context.Context, lg *models.Creat
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	isGroupAdmin := true
 	newRole := &models.DBUpdateUserInfo{
-		ID:           lg.CreatedBy,
-		IsGroupAdmin: &isGroupAdmin,
-		Updated:      time.Now(),
+		ID:      lg.CreatedBy,
+		Updated: time.Now(),
 	}
 	if err = lgh.groupSaver.UpdateUserInfo(ctx, newRole); err != nil {
 		if errors.Is(err, storage.ErrInvalidCredentials) {
@@ -226,4 +225,38 @@ func (lgh *LgHanglers) DeleteLearningGroup(ctx context.Context, id string) error
 	}
 
 	return nil
+}
+
+// IsGroupAdmin checks if the user is a group administrator
+func (lgh *LgHanglers) IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error) {
+	const op = "learning_group.IsGroupAdmin"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("user_id", uID),
+		slog.String("learning_group_id", lgID),
+	)
+
+	log.Info("checkin group_admin permissions")
+
+	role, err := lgh.groupeProvider.IsGroupAdmin(ctx, uID, lgID)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrLgNotFound):
+			log.Warn("learning_group not found", slog.String("err", err.Error()))
+			return false, fmt.Errorf("%s: %w", op, ErrGroupNotFound)
+		default:
+			log.Error("user not a group admin", slog.String("err", err.Error()))
+			return false, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	if !role {
+		log.Info("checked user is group_admin", slog.Bool("is_groupe_admin", false))
+		return false, nil
+	}
+
+	log.Info("checked user is group_admin", slog.Bool("is_groupe_admin", true))
+
+	return true, nil
 }
