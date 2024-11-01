@@ -1,4 +1,4 @@
-package auth
+package ssohandlers
 
 import (
 	"context"
@@ -29,14 +29,23 @@ type AuthHandlers interface {
 	UpdateUserInfo(ctx context.Context, userInfo *models.UpdateUserInfo) error
 }
 
-type serverAPI struct {
-	auth AuthHandlers
-
-	ssov1.UnimplementedAuthServer
+type LGHAndlers interface {
+	CreateLearningGroup(ctx context.Context, lg *models.CreateLearningGroup) error
+	GetLgByID(ctx context.Context, lgID string) (*models.LearningGroup, error)
+	GetLGroupsByID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
+	UpdateLearningGroup(ctx context.Context, lg *models.UpdateLearningGroup) error
+	DeleteLearningGroup(ctx context.Context, id string) error
 }
 
-func RegisterAuthServiceServer(gRPC *grpc.Server, auth AuthHandlers) {
-	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
+type serverAPI struct {
+	auth AuthHandlers
+	lgh  LGHAndlers
+
+	ssov1.UnimplementedSsoServer
+}
+
+func RegisterSsoServiceServer(gRPC *grpc.Server, auth AuthHandlers, lgh LGHAndlers) {
+	ssov1.RegisterSsoServer(gRPC, &serverAPI{auth: auth, lgh: lgh})
 }
 
 func (s *serverAPI) LoginUser(ctx context.Context, req *ssov1.LoginUserRequest) (*ssov1.LoginUserResponse, error) {

@@ -33,7 +33,7 @@ type UserSaver interface {
 type UserProvider interface {
 	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
 	FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error)
-	GetUserRole(ctx context.Context, userID string) (string, error)
+	GetUserRoles(ctx context.Context, userID string) (*models.UserRoles, error)
 	GetExistChatID(ctx context.Context, userID string) (string, error)
 }
 
@@ -290,12 +290,13 @@ func (ah *AuthHandlers) RegisterUser(ctx context.Context, user models.CreateUser
 	}
 
 	newUser := models.DBCreateUser{
-		Email:    user.Email,
-		PassHash: passHash,
-		Name:     user.Name,
-		Role:     models.UserRoleDefault,
-		Created:  time.Now(),
-		Updated:  time.Now(),
+		Email:        user.Email,
+		PassHash:     passHash,
+		Name:         user.Name,
+		IsAdmin:      false,
+		IsGroupAdmin: false,
+		Created:      time.Now(),
+		Updated:      time.Now(),
 	}
 	err = ah.usrSaver.SaveUser(ctx, &newUser)
 	if err != nil {
@@ -345,7 +346,7 @@ func (ah *AuthHandlers) UpdateUserInfo(ctx context.Context, userInfo *models.Upd
 			return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
 
-		log.Error("failed to save user info", slog.String("err", err.Error()))
+		log.Error("failed to update user info", slog.String("err", err.Error()))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -400,7 +401,7 @@ func (ah *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error
 
 	log.Info("check user is admin")
 
-	role, err := ah.usrProvider.GetUserRole(ctx, userID)
+	role, err := ah.usrProvider.GetUserRoles(ctx, userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			ah.log.Warn("user not found", slog.String("err", err.Error()))
@@ -410,7 +411,7 @@ func (ah *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if role != models.UserRoleAdmin {
+	if !role.IsAdmin {
 		log.Info("checked user is admin", slog.Bool("is_admin", false))
 		return false, nil
 	}
@@ -472,8 +473,6 @@ func (ah *AuthHandlers) generateTokens(
 			log.Error("failed to get refresh token", slog.String("err", err.Error()))
 		}
 	}
-
-	fmt.Println(existingRefreshToken)
 
 	// Generate new access-token
 	accessToken, err := ah.jwtManager.IssueAccessToken(userID)

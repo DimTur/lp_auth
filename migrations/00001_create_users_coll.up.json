@@ -11,6 +11,7 @@
             "key": { "tg_link": 1 },
             "name": "unique_tg_link",
             "unique": true,
+            "partialFilterExpression": { "tg_link": { "$exists": true } },
             "background": true
         }
     ]

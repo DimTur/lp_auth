@@ -19,20 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Auth_RegisterUser_FullMethodName     = "/auth.v1.Auth/RegisterUser"
-	Auth_LoginUser_FullMethodName        = "/auth.v1.Auth/LoginUser"
-	Auth_LoginViaTg_FullMethodName       = "/auth.v1.Auth/LoginViaTg"
-	Auth_RefreshToken_FullMethodName     = "/auth.v1.Auth/RefreshToken"
-	Auth_IsAdmin_FullMethodName          = "/auth.v1.Auth/IsAdmin"
-	Auth_AuthCheck_FullMethodName        = "/auth.v1.Auth/AuthCheck"
-	Auth_UpdateUserInfo_FullMethodName   = "/auth.v1.Auth/UpdateUserInfo"
-	Auth_CheckOTPAndLogIn_FullMethodName = "/auth.v1.Auth/CheckOTPAndLogIn"
+	Sso_RegisterUser_FullMethodName         = "/auth.v1.Sso/RegisterUser"
+	Sso_LoginUser_FullMethodName            = "/auth.v1.Sso/LoginUser"
+	Sso_LoginViaTg_FullMethodName           = "/auth.v1.Sso/LoginViaTg"
+	Sso_RefreshToken_FullMethodName         = "/auth.v1.Sso/RefreshToken"
+	Sso_IsAdmin_FullMethodName              = "/auth.v1.Sso/IsAdmin"
+	Sso_AuthCheck_FullMethodName            = "/auth.v1.Sso/AuthCheck"
+	Sso_UpdateUserInfo_FullMethodName       = "/auth.v1.Sso/UpdateUserInfo"
+	Sso_CheckOTPAndLogIn_FullMethodName     = "/auth.v1.Sso/CheckOTPAndLogIn"
+	Sso_CreateLearningGroup_FullMethodName  = "/auth.v1.Sso/CreateLearningGroup"
+	Sso_GetLearningGroupByID_FullMethodName = "/auth.v1.Sso/GetLearningGroupByID"
+	Sso_UpdateLearningGroup_FullMethodName  = "/auth.v1.Sso/UpdateLearningGroup"
+	Sso_DeleteLearningGroup_FullMethodName  = "/auth.v1.Sso/DeleteLearningGroup"
+	Sso_GetLearningGroups_FullMethodName    = "/auth.v1.Sso/GetLearningGroups"
 )
 
-// AuthClient is the client API for Auth service.
+// SsoClient is the client API for Sso service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type AuthClient interface {
+type SsoClient interface {
 	RegisterUser(ctx context.Context, in *RegisterUserRequest, opts ...grpc.CallOption) (*RegisterUserResponse, error)
 	LoginUser(ctx context.Context, in *LoginUserRequest, opts ...grpc.CallOption) (*LoginUserResponse, error)
 	LoginViaTg(ctx context.Context, in *LoginViaTgRequest, opts ...grpc.CallOption) (*LoginViaTgResponse, error)
@@ -41,100 +46,155 @@ type AuthClient interface {
 	AuthCheck(ctx context.Context, in *AuthCheckRequest, opts ...grpc.CallOption) (*AuthCheckResponse, error)
 	UpdateUserInfo(ctx context.Context, in *UpdateUserInfoRequest, opts ...grpc.CallOption) (*UpdateUserInfoResponse, error)
 	CheckOTPAndLogIn(ctx context.Context, in *CheckOTPAndLogInRequest, opts ...grpc.CallOption) (*CheckOTPAndLogInResponse, error)
+	CreateLearningGroup(ctx context.Context, in *CreateLearningGroupRequest, opts ...grpc.CallOption) (*CreateLearningGroupResponse, error)
+	GetLearningGroupByID(ctx context.Context, in *GetLearningGroupByIDRequest, opts ...grpc.CallOption) (*GetLearningGroupByIDResponse, error)
+	UpdateLearningGroup(ctx context.Context, in *UpdateLearningGroupRequest, opts ...grpc.CallOption) (*UpdateLearningGroupResponse, error)
+	DeleteLearningGroup(ctx context.Context, in *DeleteLearningGroupRequest, opts ...grpc.CallOption) (*DeleteLearningGroupResponse, error)
+	GetLearningGroups(ctx context.Context, in *GetLearningGroupsRequest, opts ...grpc.CallOption) (*GetLearningGroupsResponse, error)
 }
 
-type authClient struct {
+type ssoClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewAuthClient(cc grpc.ClientConnInterface) AuthClient {
-	return &authClient{cc}
+func NewSsoClient(cc grpc.ClientConnInterface) SsoClient {
+	return &ssoClient{cc}
 }
 
-func (c *authClient) RegisterUser(ctx context.Context, in *RegisterUserRequest, opts ...grpc.CallOption) (*RegisterUserResponse, error) {
+func (c *ssoClient) RegisterUser(ctx context.Context, in *RegisterUserRequest, opts ...grpc.CallOption) (*RegisterUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RegisterUserResponse)
-	err := c.cc.Invoke(ctx, Auth_RegisterUser_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_RegisterUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) LoginUser(ctx context.Context, in *LoginUserRequest, opts ...grpc.CallOption) (*LoginUserResponse, error) {
+func (c *ssoClient) LoginUser(ctx context.Context, in *LoginUserRequest, opts ...grpc.CallOption) (*LoginUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LoginUserResponse)
-	err := c.cc.Invoke(ctx, Auth_LoginUser_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_LoginUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) LoginViaTg(ctx context.Context, in *LoginViaTgRequest, opts ...grpc.CallOption) (*LoginViaTgResponse, error) {
+func (c *ssoClient) LoginViaTg(ctx context.Context, in *LoginViaTgRequest, opts ...grpc.CallOption) (*LoginViaTgResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LoginViaTgResponse)
-	err := c.cc.Invoke(ctx, Auth_LoginViaTg_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_LoginViaTg_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
+func (c *ssoClient) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RefreshTokenResponse)
-	err := c.cc.Invoke(ctx, Auth_RefreshToken_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_RefreshToken_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) IsAdmin(ctx context.Context, in *IsAdminRequest, opts ...grpc.CallOption) (*IsAdminResponse, error) {
+func (c *ssoClient) IsAdmin(ctx context.Context, in *IsAdminRequest, opts ...grpc.CallOption) (*IsAdminResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IsAdminResponse)
-	err := c.cc.Invoke(ctx, Auth_IsAdmin_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_IsAdmin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) AuthCheck(ctx context.Context, in *AuthCheckRequest, opts ...grpc.CallOption) (*AuthCheckResponse, error) {
+func (c *ssoClient) AuthCheck(ctx context.Context, in *AuthCheckRequest, opts ...grpc.CallOption) (*AuthCheckResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AuthCheckResponse)
-	err := c.cc.Invoke(ctx, Auth_AuthCheck_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_AuthCheck_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) UpdateUserInfo(ctx context.Context, in *UpdateUserInfoRequest, opts ...grpc.CallOption) (*UpdateUserInfoResponse, error) {
+func (c *ssoClient) UpdateUserInfo(ctx context.Context, in *UpdateUserInfoRequest, opts ...grpc.CallOption) (*UpdateUserInfoResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateUserInfoResponse)
-	err := c.cc.Invoke(ctx, Auth_UpdateUserInfo_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_UpdateUserInfo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authClient) CheckOTPAndLogIn(ctx context.Context, in *CheckOTPAndLogInRequest, opts ...grpc.CallOption) (*CheckOTPAndLogInResponse, error) {
+func (c *ssoClient) CheckOTPAndLogIn(ctx context.Context, in *CheckOTPAndLogInRequest, opts ...grpc.CallOption) (*CheckOTPAndLogInResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CheckOTPAndLogInResponse)
-	err := c.cc.Invoke(ctx, Auth_CheckOTPAndLogIn_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Sso_CheckOTPAndLogIn_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// AuthServer is the server API for Auth service.
-// All implementations must embed UnimplementedAuthServer
+func (c *ssoClient) CreateLearningGroup(ctx context.Context, in *CreateLearningGroupRequest, opts ...grpc.CallOption) (*CreateLearningGroupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateLearningGroupResponse)
+	err := c.cc.Invoke(ctx, Sso_CreateLearningGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ssoClient) GetLearningGroupByID(ctx context.Context, in *GetLearningGroupByIDRequest, opts ...grpc.CallOption) (*GetLearningGroupByIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLearningGroupByIDResponse)
+	err := c.cc.Invoke(ctx, Sso_GetLearningGroupByID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ssoClient) UpdateLearningGroup(ctx context.Context, in *UpdateLearningGroupRequest, opts ...grpc.CallOption) (*UpdateLearningGroupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateLearningGroupResponse)
+	err := c.cc.Invoke(ctx, Sso_UpdateLearningGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ssoClient) DeleteLearningGroup(ctx context.Context, in *DeleteLearningGroupRequest, opts ...grpc.CallOption) (*DeleteLearningGroupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteLearningGroupResponse)
+	err := c.cc.Invoke(ctx, Sso_DeleteLearningGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ssoClient) GetLearningGroups(ctx context.Context, in *GetLearningGroupsRequest, opts ...grpc.CallOption) (*GetLearningGroupsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLearningGroupsResponse)
+	err := c.cc.Invoke(ctx, Sso_GetLearningGroups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SsoServer is the server API for Sso service.
+// All implementations must embed UnimplementedSsoServer
 // for forward compatibility.
-type AuthServer interface {
+type SsoServer interface {
 	RegisterUser(context.Context, *RegisterUserRequest) (*RegisterUserResponse, error)
 	LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error)
 	LoginViaTg(context.Context, *LoginViaTgRequest) (*LoginViaTgResponse, error)
@@ -143,243 +203,373 @@ type AuthServer interface {
 	AuthCheck(context.Context, *AuthCheckRequest) (*AuthCheckResponse, error)
 	UpdateUserInfo(context.Context, *UpdateUserInfoRequest) (*UpdateUserInfoResponse, error)
 	CheckOTPAndLogIn(context.Context, *CheckOTPAndLogInRequest) (*CheckOTPAndLogInResponse, error)
-	mustEmbedUnimplementedAuthServer()
+	CreateLearningGroup(context.Context, *CreateLearningGroupRequest) (*CreateLearningGroupResponse, error)
+	GetLearningGroupByID(context.Context, *GetLearningGroupByIDRequest) (*GetLearningGroupByIDResponse, error)
+	UpdateLearningGroup(context.Context, *UpdateLearningGroupRequest) (*UpdateLearningGroupResponse, error)
+	DeleteLearningGroup(context.Context, *DeleteLearningGroupRequest) (*DeleteLearningGroupResponse, error)
+	GetLearningGroups(context.Context, *GetLearningGroupsRequest) (*GetLearningGroupsResponse, error)
+	mustEmbedUnimplementedSsoServer()
 }
 
-// UnimplementedAuthServer must be embedded to have
+// UnimplementedSsoServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedAuthServer struct{}
+type UnimplementedSsoServer struct{}
 
-func (UnimplementedAuthServer) RegisterUser(context.Context, *RegisterUserRequest) (*RegisterUserResponse, error) {
+func (UnimplementedSsoServer) RegisterUser(context.Context, *RegisterUserRequest) (*RegisterUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterUser not implemented")
 }
-func (UnimplementedAuthServer) LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error) {
+func (UnimplementedSsoServer) LoginUser(context.Context, *LoginUserRequest) (*LoginUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoginUser not implemented")
 }
-func (UnimplementedAuthServer) LoginViaTg(context.Context, *LoginViaTgRequest) (*LoginViaTgResponse, error) {
+func (UnimplementedSsoServer) LoginViaTg(context.Context, *LoginViaTgRequest) (*LoginViaTgResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoginViaTg not implemented")
 }
-func (UnimplementedAuthServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
+func (UnimplementedSsoServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefreshToken not implemented")
 }
-func (UnimplementedAuthServer) IsAdmin(context.Context, *IsAdminRequest) (*IsAdminResponse, error) {
+func (UnimplementedSsoServer) IsAdmin(context.Context, *IsAdminRequest) (*IsAdminResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IsAdmin not implemented")
 }
-func (UnimplementedAuthServer) AuthCheck(context.Context, *AuthCheckRequest) (*AuthCheckResponse, error) {
+func (UnimplementedSsoServer) AuthCheck(context.Context, *AuthCheckRequest) (*AuthCheckResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthCheck not implemented")
 }
-func (UnimplementedAuthServer) UpdateUserInfo(context.Context, *UpdateUserInfoRequest) (*UpdateUserInfoResponse, error) {
+func (UnimplementedSsoServer) UpdateUserInfo(context.Context, *UpdateUserInfoRequest) (*UpdateUserInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserInfo not implemented")
 }
-func (UnimplementedAuthServer) CheckOTPAndLogIn(context.Context, *CheckOTPAndLogInRequest) (*CheckOTPAndLogInResponse, error) {
+func (UnimplementedSsoServer) CheckOTPAndLogIn(context.Context, *CheckOTPAndLogInRequest) (*CheckOTPAndLogInResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckOTPAndLogIn not implemented")
 }
-func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
-func (UnimplementedAuthServer) testEmbeddedByValue()              {}
+func (UnimplementedSsoServer) CreateLearningGroup(context.Context, *CreateLearningGroupRequest) (*CreateLearningGroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateLearningGroup not implemented")
+}
+func (UnimplementedSsoServer) GetLearningGroupByID(context.Context, *GetLearningGroupByIDRequest) (*GetLearningGroupByIDResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLearningGroupByID not implemented")
+}
+func (UnimplementedSsoServer) UpdateLearningGroup(context.Context, *UpdateLearningGroupRequest) (*UpdateLearningGroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateLearningGroup not implemented")
+}
+func (UnimplementedSsoServer) DeleteLearningGroup(context.Context, *DeleteLearningGroupRequest) (*DeleteLearningGroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteLearningGroup not implemented")
+}
+func (UnimplementedSsoServer) GetLearningGroups(context.Context, *GetLearningGroupsRequest) (*GetLearningGroupsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLearningGroups not implemented")
+}
+func (UnimplementedSsoServer) mustEmbedUnimplementedSsoServer() {}
+func (UnimplementedSsoServer) testEmbeddedByValue()             {}
 
-// UnsafeAuthServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to AuthServer will
+// UnsafeSsoServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SsoServer will
 // result in compilation errors.
-type UnsafeAuthServer interface {
-	mustEmbedUnimplementedAuthServer()
+type UnsafeSsoServer interface {
+	mustEmbedUnimplementedSsoServer()
 }
 
-func RegisterAuthServer(s grpc.ServiceRegistrar, srv AuthServer) {
-	// If the following call pancis, it indicates UnimplementedAuthServer was
+func RegisterSsoServer(s grpc.ServiceRegistrar, srv SsoServer) {
+	// If the following call pancis, it indicates UnimplementedSsoServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&Auth_ServiceDesc, srv)
+	s.RegisterService(&Sso_ServiceDesc, srv)
 }
 
-func _Auth_RegisterUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_RegisterUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RegisterUserRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).RegisterUser(ctx, in)
+		return srv.(SsoServer).RegisterUser(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_RegisterUser_FullMethodName,
+		FullMethod: Sso_RegisterUser_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).RegisterUser(ctx, req.(*RegisterUserRequest))
+		return srv.(SsoServer).RegisterUser(ctx, req.(*RegisterUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_LoginUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_LoginUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoginUserRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).LoginUser(ctx, in)
+		return srv.(SsoServer).LoginUser(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_LoginUser_FullMethodName,
+		FullMethod: Sso_LoginUser_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).LoginUser(ctx, req.(*LoginUserRequest))
+		return srv.(SsoServer).LoginUser(ctx, req.(*LoginUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_LoginViaTg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_LoginViaTg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoginViaTgRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).LoginViaTg(ctx, in)
+		return srv.(SsoServer).LoginViaTg(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_LoginViaTg_FullMethodName,
+		FullMethod: Sso_LoginViaTg_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).LoginViaTg(ctx, req.(*LoginViaTgRequest))
+		return srv.(SsoServer).LoginViaTg(ctx, req.(*LoginViaTgRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RefreshTokenRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).RefreshToken(ctx, in)
+		return srv.(SsoServer).RefreshToken(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_RefreshToken_FullMethodName,
+		FullMethod: Sso_RefreshToken_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).RefreshToken(ctx, req.(*RefreshTokenRequest))
+		return srv.(SsoServer).RefreshToken(ctx, req.(*RefreshTokenRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_IsAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_IsAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(IsAdminRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).IsAdmin(ctx, in)
+		return srv.(SsoServer).IsAdmin(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_IsAdmin_FullMethodName,
+		FullMethod: Sso_IsAdmin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).IsAdmin(ctx, req.(*IsAdminRequest))
+		return srv.(SsoServer).IsAdmin(ctx, req.(*IsAdminRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_AuthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_AuthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AuthCheckRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).AuthCheck(ctx, in)
+		return srv.(SsoServer).AuthCheck(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_AuthCheck_FullMethodName,
+		FullMethod: Sso_AuthCheck_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).AuthCheck(ctx, req.(*AuthCheckRequest))
+		return srv.(SsoServer).AuthCheck(ctx, req.(*AuthCheckRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_UpdateUserInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_UpdateUserInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateUserInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).UpdateUserInfo(ctx, in)
+		return srv.(SsoServer).UpdateUserInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_UpdateUserInfo_FullMethodName,
+		FullMethod: Sso_UpdateUserInfo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).UpdateUserInfo(ctx, req.(*UpdateUserInfoRequest))
+		return srv.(SsoServer).UpdateUserInfo(ctx, req.(*UpdateUserInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auth_CheckOTPAndLogIn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Sso_CheckOTPAndLogIn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CheckOTPAndLogInRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServer).CheckOTPAndLogIn(ctx, in)
+		return srv.(SsoServer).CheckOTPAndLogIn(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Auth_CheckOTPAndLogIn_FullMethodName,
+		FullMethod: Sso_CheckOTPAndLogIn_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).CheckOTPAndLogIn(ctx, req.(*CheckOTPAndLogInRequest))
+		return srv.(SsoServer).CheckOTPAndLogIn(ctx, req.(*CheckOTPAndLogInRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Auth_ServiceDesc is the grpc.ServiceDesc for Auth service.
+func _Sso_CreateLearningGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateLearningGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SsoServer).CreateLearningGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Sso_CreateLearningGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SsoServer).CreateLearningGroup(ctx, req.(*CreateLearningGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Sso_GetLearningGroupByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLearningGroupByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SsoServer).GetLearningGroupByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Sso_GetLearningGroupByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SsoServer).GetLearningGroupByID(ctx, req.(*GetLearningGroupByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Sso_UpdateLearningGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateLearningGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SsoServer).UpdateLearningGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Sso_UpdateLearningGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SsoServer).UpdateLearningGroup(ctx, req.(*UpdateLearningGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Sso_DeleteLearningGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteLearningGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SsoServer).DeleteLearningGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Sso_DeleteLearningGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SsoServer).DeleteLearningGroup(ctx, req.(*DeleteLearningGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Sso_GetLearningGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLearningGroupsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SsoServer).GetLearningGroups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Sso_GetLearningGroups_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SsoServer).GetLearningGroups(ctx, req.(*GetLearningGroupsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Sso_ServiceDesc is the grpc.ServiceDesc for Sso service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Auth_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "auth.v1.Auth",
-	HandlerType: (*AuthServer)(nil),
+var Sso_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "auth.v1.Sso",
+	HandlerType: (*SsoServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "RegisterUser",
-			Handler:    _Auth_RegisterUser_Handler,
+			Handler:    _Sso_RegisterUser_Handler,
 		},
 		{
 			MethodName: "LoginUser",
-			Handler:    _Auth_LoginUser_Handler,
+			Handler:    _Sso_LoginUser_Handler,
 		},
 		{
 			MethodName: "LoginViaTg",
-			Handler:    _Auth_LoginViaTg_Handler,
+			Handler:    _Sso_LoginViaTg_Handler,
 		},
 		{
 			MethodName: "RefreshToken",
-			Handler:    _Auth_RefreshToken_Handler,
+			Handler:    _Sso_RefreshToken_Handler,
 		},
 		{
 			MethodName: "IsAdmin",
-			Handler:    _Auth_IsAdmin_Handler,
+			Handler:    _Sso_IsAdmin_Handler,
 		},
 		{
 			MethodName: "AuthCheck",
-			Handler:    _Auth_AuthCheck_Handler,
+			Handler:    _Sso_AuthCheck_Handler,
 		},
 		{
 			MethodName: "UpdateUserInfo",
-			Handler:    _Auth_UpdateUserInfo_Handler,
+			Handler:    _Sso_UpdateUserInfo_Handler,
 		},
 		{
 			MethodName: "CheckOTPAndLogIn",
-			Handler:    _Auth_CheckOTPAndLogIn_Handler,
+			Handler:    _Sso_CheckOTPAndLogIn_Handler,
+		},
+		{
+			MethodName: "CreateLearningGroup",
+			Handler:    _Sso_CreateLearningGroup_Handler,
+		},
+		{
+			MethodName: "GetLearningGroupByID",
+			Handler:    _Sso_GetLearningGroupByID_Handler,
+		},
+		{
+			MethodName: "UpdateLearningGroup",
+			Handler:    _Sso_UpdateLearningGroup_Handler,
+		},
+		{
+			MethodName: "DeleteLearningGroup",
+			Handler:    _Sso_DeleteLearningGroup_Handler,
+		},
+		{
+			MethodName: "GetLearningGroups",
+			Handler:    _Sso_GetLearningGroups_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

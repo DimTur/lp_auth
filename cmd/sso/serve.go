@@ -127,6 +127,7 @@ func NewServeCmd() *cobra.Command {
 
 			application, err := app.NewApp(
 				storage,
+				storage,
 				tokenRedis,
 				otpRedis,
 				rmq,

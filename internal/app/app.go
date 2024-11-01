@@ -6,6 +6,7 @@ import (
 
 	grpcapp "github.com/DimTur/lp_auth/internal/app/grpc"
 	"github.com/DimTur/lp_auth/internal/services/auth"
+	learninggroup "github.com/DimTur/lp_auth/internal/services/learning_group"
 	"github.com/DimTur/lp_auth/pkg/crypto"
 	"github.com/DimTur/lp_auth/pkg/jwt"
 	"github.com/go-playground/validator/v10"
@@ -15,6 +16,12 @@ type AuthStorage interface {
 	auth.UserSaver
 	auth.UserProvider
 	auth.TokenProvider
+}
+
+type GroupStorage interface {
+	learninggroup.GroupSaver
+	learninggroup.GroupeProvider
+	learninggroup.GroupeDel
 }
 
 type TokenRedis interface {
@@ -35,6 +42,7 @@ type App struct {
 
 func NewApp(
 	authStorage AuthStorage,
+	groupStorage GroupStorage,
 	tokenRedis TokenRedis,
 	otpRedis OTPRedis,
 	authRabbitMq AuthRabbitMq,
@@ -73,9 +81,18 @@ func NewApp(
 		jwtManager,
 	)
 
+	lgGRPCHandlers := learninggroup.New(
+		logger,
+		validator,
+		groupStorage,
+		groupStorage,
+		groupStorage,
+	)
+
 	grpcServer, err := grpcapp.NewGRPCServer(
 		grpcAddr,
 		authGRPCHandlers,
+		lgGRPCHandlers,
 		logger,
 		validator,
 	)

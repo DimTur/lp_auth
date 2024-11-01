@@ -21,7 +21,8 @@ func (m *MClient) SaveUser(ctx context.Context, user *models.DBCreateUser) error
 	const op = "storage.mongodb.SaveUser"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-	user.ID = primitive.NewObjectID()
+	user.ID = primitive.NewObjectID().Hex()
+	fmt.Println(user.ID)
 	_, err := coll.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -40,8 +41,8 @@ func (m *MClient) FindUserByEmail(ctx context.Context, email string) (*models.Us
 
 	filter := bson.M{"email": email}
 
-	var user models.User
-	err := coll.FindOne(ctx, filter).Decode(&user)
+	var userDB models.DBUser
+	err := coll.FindOne(ctx, filter).Decode(&userDB)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
@@ -51,7 +52,17 @@ func (m *MClient) FindUserByEmail(ctx context.Context, email string) (*models.Us
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &user, nil
+	return &models.User{
+		ID:           userDB.ID,
+		Email:        userDB.Email,
+		PassHash:     userDB.PassHash,
+		Name:         userDB.Name,
+		IsAdmin:      userDB.IsAdmin,
+		IsGroupAdmin: userDB.IsGroupAdmin,
+		TgLink:       userDB.TgLink,
+		Created:      userDB.Created,
+		Updated:      userDB.Updated,
+	}, nil
 }
 
 func (m *MClient) FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error) {
@@ -79,10 +90,6 @@ func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateU
 	const op = "storage.mongodb.UpdateUserInfo"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-	objid, err := primitive.ObjectIDFromHex(userInfo.ID)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, storage.ErrObjectID)
-	}
 
 	update := bson.M{}
 	if userInfo.Email != "" {
@@ -91,15 +98,24 @@ func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateU
 	if userInfo.Name != "" {
 		update["name"] = userInfo.Name
 	}
+	if userInfo.IsAdmin != nil {
+		update["is_admin"] = userInfo.IsAdmin
+	}
+	if userInfo.IsGroupAdmin != nil {
+		update["is_group_admin"] = userInfo.IsGroupAdmin
+	}
 	if userInfo.TgLink != "" {
 		update["tg_link"] = userInfo.TgLink
+	}
+	if userInfo.ChatID != "" {
+		update["chat_id"] = userInfo.ChatID
 	}
 	if !userInfo.Updated.IsZero() {
 		update["updated"] = userInfo.Updated
 	}
 
 	if len(update) > 0 {
-		_, err = coll.UpdateByID(ctx, objid, bson.M{
+		_, err := coll.UpdateByID(ctx, userInfo.ID, bson.M{
 			"$set": update,
 		})
 		if err != nil {
@@ -113,28 +129,24 @@ func (m *MClient) UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateU
 	return nil
 }
 
-func (m *MClient) GetUserRole(ctx context.Context, userID string) (string, error) {
+func (m *MClient) GetUserRoles(ctx context.Context, userID string) (*models.UserRoles, error) {
 	const op = "storage.mongodb.GetUserRole"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-	objid, err := primitive.ObjectIDFromHex(userID)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, storage.ErrObjectID)
-	}
 
-	filter := bson.M{"_id": objid}
+	filter := bson.M{"_id": userID}
 
-	var userRole models.UserRole
-	err = coll.FindOne(ctx, filter).Decode(&userRole)
+	var userRoles models.UserRoles
+	err := coll.FindOne(ctx, filter).Decode(&userRoles)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return "", fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return userRole.Role, nil
+	return &userRoles, nil
 }
 
 func (m *MClient) SaveRefreshTokenToDB(ctx context.Context, token *models.CreateRefreshToken) error {
@@ -157,14 +169,10 @@ func (m *MClient) GetExistChatID(ctx context.Context, userID string) (string, er
 	const op = "storage.mongodb.GetExistChatID"
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
-	objid, err := primitive.ObjectIDFromHex(userID)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, storage.ErrObjectID)
-	}
-	filter := bson.M{"_id": objid}
+	filter := bson.M{"_id": userID}
 
 	var chatID models.UserChatID
-	err = coll.FindOne(ctx, filter).Decode(&chatID)
+	err := coll.FindOne(ctx, filter).Decode(&chatID)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return "", fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)

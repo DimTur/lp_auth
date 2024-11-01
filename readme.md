@@ -1,6 +1,6 @@
 **Before start you need to apply migrations and generate keys**
 
-    go run ./cmd/migrator --storage-path=./storage/lp.db --migrations-path=./migrations
+    go run ./cmd/migrator apply --config=./config/config.yaml --migrationsPath=./migrations
 
     openssl genpkey -algorithm Ed25519 -out private_key.pem
     openssl pkey -in private_key.pem -pubout -out public_key.pem

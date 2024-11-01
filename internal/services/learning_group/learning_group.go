@@ -1,0 +1,229 @@
+package learninggroup
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/DimTur/lp_auth/internal/domain/models"
+	"github.com/DimTur/lp_auth/internal/services/storage"
+	"github.com/go-playground/validator/v10"
+)
+
+type GroupSaver interface {
+	SaveLg(ctx context.Context, lg *models.DBCreateLearningGroup) error
+	UpdateLgByID(ctx context.Context, lg *models.DBUpdateLearningGroup) error
+	UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateUserInfo) error
+}
+
+type GroupeProvider interface {
+	GetLgByID(ctx context.Context, id string) (*models.LearningGroup, error)
+	GetLGroupsByUserID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
+}
+
+type GroupeDel interface {
+	DeleteLgByID(ctx context.Context, id string) error
+}
+
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidGroupID     = errors.New("invalid group id")
+	ErrGroupExists        = errors.New("group already exists")
+	ErrGroupNotFound      = errors.New("group not found")
+)
+
+type LgHanglers struct {
+	log            *slog.Logger
+	validator      *validator.Validate
+	groupSaver     GroupSaver
+	groupeProvider GroupeProvider
+	groupeDel      GroupeDel
+}
+
+func New(
+	log *slog.Logger,
+	validator *validator.Validate,
+	groupSaver GroupSaver,
+	groupeProvider GroupeProvider,
+	groupeDel GroupeDel,
+) *LgHanglers {
+	return &LgHanglers{
+		log:            log,
+		validator:      validator,
+		groupSaver:     groupSaver,
+		groupeProvider: groupeProvider,
+		groupeDel:      groupeDel,
+	}
+}
+
+// CreateLearningGroup create new learning group
+func (lgh *LgHanglers) CreateLearningGroup(ctx context.Context, lg *models.CreateLearningGroup) error {
+	const op = "learning_group.CreateLearningGroup"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("learning_gruop", lg.Name),
+		slog.String("creating_by", lg.CreatedBy),
+	)
+
+	// Validation
+	err := lgh.validator.Struct(lg)
+	if err != nil {
+		log.Warn("invalid parameters", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
+
+	log.Info("creating learning_group")
+
+	dbGroup := &models.DBCreateLearningGroup{
+		Name:        lg.Name,
+		GroupAdmins: lg.GroupAdmins,
+		CreatedBy:   lg.CreatedBy,
+		ModifiedBy:  lg.ModifiedBy,
+		Created:     time.Now(),
+		Updated:     time.Now(),
+		Learners:    lg.Learners,
+	}
+
+	if err = lgh.groupSaver.SaveLg(ctx, dbGroup); err != nil {
+		if errors.Is(err, storage.ErrLgExitsts) {
+			lgh.log.Warn("learning_group already exists", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrGroupExists)
+		}
+
+		log.Error("failed to save learning_group", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	isGroupAdmin := true
+	newRole := &models.DBUpdateUserInfo{
+		ID:           lg.CreatedBy,
+		IsGroupAdmin: &isGroupAdmin,
+		Updated:      time.Now(),
+	}
+	if err = lgh.groupSaver.UpdateUserInfo(ctx, newRole); err != nil {
+		if errors.Is(err, storage.ErrInvalidCredentials) {
+			lgh.log.Warn("invalid credentials", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		}
+
+		log.Error("failed to update user info", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	log.Info("learning_group created successfully")
+
+	return nil
+}
+
+// GetLgByID returns learning group by ID
+func (lgh *LgHanglers) GetLgByID(ctx context.Context, lgID string) (*models.LearningGroup, error) {
+	const op = "learning_group.GetLgByID"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("learning_group id", lgID),
+	)
+
+	log.Info("getting learning_group")
+
+	lg, err := lgh.groupeProvider.GetLgByID(ctx, lgID)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrLgNotFound):
+			log.Warn("learning_group not found", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, ErrGroupNotFound)
+		default:
+			log.Error("failed to get learning_group", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	return lg, nil
+}
+
+// GetLGroupsByID returns array with info about learning groups related with user
+func (lgh *LgHanglers) GetLGroupsByID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error) {
+	const op = "learning_group.GetLGroupsByID"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("for user with id", userID),
+	)
+
+	log.Info("getting learning_groups")
+
+	lGroups, err := lgh.groupeProvider.GetLGroupsByUserID(ctx, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrLgNotFound):
+			return nil, fmt.Errorf("%s: %w", op, ErrGroupNotFound)
+		default:
+			log.Error("failed to get learning_groups", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	return lGroups, nil
+}
+
+// UpdateLearningGroup updates the learning group by all or one field
+func (lgh *LgHanglers) UpdateLearningGroup(ctx context.Context, lg *models.UpdateLearningGroup) error {
+	const op = "learning_group.UpdateLearningGroup"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("learning_group id", lg.ID),
+	)
+
+	// Validation
+	err := lgh.validator.Struct(lg)
+	if err != nil {
+		log.Warn("invalid parameters", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
+
+	log.Info("updating learning_group")
+
+	updLgGroup := &models.DBUpdateLearningGroup{
+		ID:          lg.ID,
+		Name:        lg.Name,
+		ModifiedBy:  lg.ModifiedBy,
+		Updated:     time.Now(),
+		GroupAdmins: lg.GroupAdmins,
+		Learners:    lg.Learners,
+	}
+	if err = lgh.groupSaver.UpdateLgByID(ctx, updLgGroup); err != nil {
+		switch {
+		case errors.Is(err, storage.ErrLgNotFound):
+			log.Warn("learning_group not found", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrGroupNotFound)
+		default:
+			log.Error("failed to update learning_group", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	return nil
+}
+
+// DeleteLearningGroup deletes learning group by ID
+func (lgh *LgHanglers) DeleteLearningGroup(ctx context.Context, id string) error {
+	const op = "learning_group.DeleteLearningGroup"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("learning_group id", id),
+	)
+
+	log.Info("deleting learning_group")
+
+	if err := lgh.groupeDel.DeleteLgByID(ctx, id); err != nil {
+		log.Error("failed to delete learning_group", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}

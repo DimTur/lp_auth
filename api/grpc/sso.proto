@@ -4,7 +4,7 @@ package auth.v1;
 
 option go_package = "lp.sso.v1;ssov1";
 
-service Auth {
+service Sso {
     rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
     rpc LoginUser (LoginUserRequest) returns (LoginUserResponse);
     rpc LoginViaTg (LoginViaTgRequest) returns (LoginViaTgResponse);
@@ -13,6 +13,12 @@ service Auth {
     rpc AuthCheck (AuthCheckRequest) returns (AuthCheckResponse);
     rpc UpdateUserInfo (UpdateUserInfoRequest) returns (UpdateUserInfoResponse);
     rpc CheckOTPAndLogIn (CheckOTPAndLogInRequest) returns (CheckOTPAndLogInResponse);
+    
+    rpc CreateLearningGroup (CreateLearningGroupRequest) returns (CreateLearningGroupResponse);
+    rpc GetLearningGroupByID (GetLearningGroupByIDRequest) returns (GetLearningGroupByIDResponse);
+    rpc UpdateLearningGroup (UpdateLearningGroupRequest) returns (UpdateLearningGroupResponse);
+    rpc DeleteLearningGroup (DeleteLearningGroupRequest) returns (DeleteLearningGroupResponse);
+    rpc GetLearningGroups (GetLearningGroupsRequest) returns (GetLearningGroupsResponse);
 }
 
 message RegisterUserRequest {
@@ -89,4 +95,73 @@ message UpdateUserInfoRequest {
 
 message UpdateUserInfoResponse {
     bool success = 1;
+}
+
+message CreateLearningGroupRequest {
+    string name = 1;
+    string created_by = 2;
+    string modified_by = 3;
+    repeated string group_admins = 4;
+    repeated string learners = 5;
+}
+
+message CreateLearningGroupResponse {
+    bool success = 1;
+}
+
+message GetLearningGroupByIDRequest {
+    string id = 1;
+}
+message GetLearningGroupByIDResponse {
+	string id = 1;              
+    string name = 2;        
+    string created_by = 3;   
+    string modified_by = 4;        
+    repeated Learner learners = 5;   
+}
+
+message Learner {
+    string id = 1;
+    string email = 2;
+    string name = 3;
+    bool is_admin = 4;
+    bool is_group_admin = 5;
+}
+
+message UpdateLearningGroupRequest {
+    string id = 1;              
+    string name = 2;        
+    string created_by = 3;   
+    string modified_by = 4;        
+    repeated string group_admins = 5;
+    repeated string learners = 6;
+}
+
+message UpdateLearningGroupResponse {
+    bool success = 1;
+}
+
+message DeleteLearningGroupRequest {
+    string id = 1;
+}
+
+message DeleteLearningGroupResponse {
+    bool success = 1;
+}
+
+message GetLearningGroupsRequest {
+    string user_id = 1;
+}
+
+message GetLearningGroupsResponse {
+    repeated LearningGroup learning_groups = 1;
+}
+
+message LearningGroup {
+    string id = 1;              
+    string name = 2;        
+    string created_by = 3;   
+    string modified_by = 4;
+    string created = 5;
+    string updated = 6;
 }

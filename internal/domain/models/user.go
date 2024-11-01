@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -13,14 +11,27 @@ const (
 )
 
 type User struct {
-	ID       string    `json:"id" bson:"_id,omitempty"`
-	Email    string    `json:"email" bson:"email"`
-	PassHash []byte    `json:"pass_hash" bson:"pass_hash"`
-	Name     string    `json:"name" bson:"name"`
-	Role     string    `json:"role" bson:"role"`
-	TgLink   string    `json:"tg_link" bson:"tg_link"`
-	Created  time.Time `json:"created" bson:"created"`
-	Updated  time.Time `json:"updated" bson:"updated"`
+	ID           string    `json:"id" bson:"_id,omitempty"`
+	Email        string    `json:"email" bson:"email"`
+	PassHash     []byte    `json:"pass_hash" bson:"pass_hash"`
+	Name         string    `json:"name" bson:"name"`
+	IsAdmin      bool      `json:"is_admin" bson:"is_admin"`
+	IsGroupAdmin bool      `json:"is_group_admin" bson:"is_group_admin"`
+	TgLink       string    `json:"tg_link" bson:"tg_link"`
+	Created      time.Time `json:"created" bson:"created"`
+	Updated      time.Time `json:"updated" bson:"updated"`
+}
+
+type DBUser struct {
+	ID           string    `bson:"_id,omitempty"`
+	Email        string    `bson:"email"`
+	PassHash     []byte    `bson:"pass_hash"`
+	Name         string    `bson:"name"`
+	IsAdmin      bool      `bson:"is_admin"`
+	IsGroupAdmin bool      `bson:"is_group_admin"`
+	TgLink       string    `bson:"tg_link"`
+	Created      time.Time `bson:"created"`
+	Updated      time.Time `bson:"updated"`
 }
 
 type LogInUser struct {
@@ -43,26 +54,30 @@ type UpdateUserInfo struct {
 }
 
 type DBCreateUser struct {
-	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Email    string             `json:"email" bson:"email" validate:"required,email"`
-	PassHash []byte             `json:"pass_hash" bson:"pass_hash" validate:"required"`
-	Name     string             `json:"name" bson:"name,omitempty"`
-	Role     string             `json:"role" bson:"role"`
-	Created  time.Time          `json:"created" bson:"created" validate:"required"`
-	Updated  time.Time          `json:"updated" bson:"updated" validate:"required"`
+	ID           string    `bson:"_id,omitempty"`
+	Email        string    `bson:"email" validate:"required,email"`
+	PassHash     []byte    `bson:"pass_hash" validate:"required"`
+	Name         string    `bson:"name,omitempty"`
+	IsAdmin      bool      `bson:"is_admin"`
+	IsGroupAdmin bool      `bson:"is_group_admin"`
+	Created      time.Time `bson:"created" validate:"required"`
+	Updated      time.Time `bson:"updated" validate:"required"`
 }
 
 type DBUpdateUserInfo struct {
-	ID      string    `bson:"_id,omitempty" validate:"required"`
-	Email   string    `bson:"email,omitempty"`
-	Name    string    `bson:"name,omitempty"`
-	TgLink  string    `bson:"tg_link,omitempty"`
-	ChatID  string    `bson:"chat_id,omitempty"`
-	Updated time.Time `bson:"updated,omitempty"`
+	ID           string    `bson:"_id,omitempty" validate:"required"`
+	Email        string    `bson:"email,omitempty"`
+	Name         string    `bson:"name,omitempty"`
+	IsAdmin      *bool     `bson:"is_admin"`
+	IsGroupAdmin *bool     `bson:"is_group_admin"`
+	TgLink       string    `bson:"tg_link,omitempty"`
+	ChatID       string    `bson:"chat_id,omitempty"`
+	Updated      time.Time `bson:"updated,omitempty"`
 }
 
-type UserRole struct {
-	Role string `json:"role" bson:"role"`
+type UserRoles struct {
+	IsAdmin      bool `json:"is_admin" bson:"is_admin"`
+	IsGroupAdmin bool `json:"is_group_admin" bson:"is_group_admin"`
 }
 
 type UserChatID struct {
