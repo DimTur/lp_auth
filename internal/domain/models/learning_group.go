@@ -32,10 +32,26 @@ type CreateLearningGroup struct {
 	Learners    []string `json:"learners" validate:"required"`
 }
 
+type GetLgByID struct {
+	UserID string `json:"user_id" validate:"required"`
+	LgId   string `json:"learning_group_id" validate:"required"`
+}
+
+type IsGroupAdmin struct {
+	UserID string `json:"user_id" validate:"required"`
+	LgId   string `json:"learning_group_id" validate:"required"`
+}
+
+type DelGroup struct {
+	UserID string `json:"user_id" validate:"required"`
+	LgId   string `json:"learning_group_id" validate:"required"`
+}
+
 type UpdateLearningGroup struct {
-	ID          string   `json:"id" validate:"required"`
+	UserID      string   `json:"user_id" validate:"required"`
+	LgId        string   `json:"learning_group_id" validate:"required"`
 	Name        string   `json:"name,omitempty"`
-	ModifiedBy  string   `json:"modified_by,omitempty"`
+	ModifiedBy  string   `json:"modified_by" validate:"required"`
 	GroupAdmins []string `json:"group_admins,omitempty"`
 	Learners    []string `json:"learners,omitempty"`
 }

@@ -112,8 +112,10 @@ message CreateLearningGroupResponse {
 }
 
 message GetLearningGroupByIDRequest {
-    string id = 1;
+    string user_id = 1;
+    string learning_group_id = 2;
 }
+
 message GetLearningGroupByIDResponse {
 	string id = 1;              
     string name = 2;        
@@ -136,11 +138,12 @@ message GroupAdmins {
 }
 
 message UpdateLearningGroupRequest {
-    string id = 1;              
-    string name = 2;         
-    string modified_by = 3;        
-    repeated string group_admins = 4;
-    repeated string learners = 5;
+    string user_id = 1;
+    string learning_group_id = 2;              
+    string name = 3;         
+    string modified_by = 4;        
+    repeated string group_admins = 5;
+    repeated string learners = 6;
 }
 
 message UpdateLearningGroupResponse {
@@ -148,7 +151,8 @@ message UpdateLearningGroupResponse {
 }
 
 message DeleteLearningGroupRequest {
-    string id = 1;
+    string user_id = 1;
+    string learning_group_id = 2;
 }
 
 message DeleteLearningGroupResponse {

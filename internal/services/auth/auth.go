@@ -65,15 +65,19 @@ type JWTManager interface {
 }
 
 var (
-	ErrInvalidCredentials  = errors.New("invalid credentials")
-	ErrInvalidAppID        = errors.New("invalid app id")
-	ErrUserExists          = errors.New("user already exists")
-	ErrUserNotFound        = errors.New("user not found")
-	ErrAppExists           = errors.New("app already exists")
-	ErrInvalidUserID       = errors.New("invalid user id")
-	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-	ErrInvalidAccessToken  = errors.New("invalid access token")
-	ErrOtpNotFound         = errors.New("otp not found")
+	ErrInvalidCredentials     = errors.New("invalid credentials")
+	ErrInvalidAppID           = errors.New("invalid app id")
+	ErrUserExists             = errors.New("user already exists")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrAppExists              = errors.New("app already exists")
+	ErrInvalidUserID          = errors.New("invalid user id")
+	ErrInvalidRefreshToken    = errors.New("invalid refresh token")
+	ErrInvalidAccessToken     = errors.New("invalid access token")
+	ErrAccessTokenGen         = errors.New("generation err access token")
+	ErrRefreshTokenGen        = errors.New("generation err refresh token")
+	ErrRefreshTokenStoreDB    = errors.New("store err refresh token to db")
+	ErrRefreshTokenStoreRedis = errors.New("store err refresh token to redis")
+	ErrOtpNotFound            = errors.New("otp not found")
 )
 
 type AuthHandlers struct {
@@ -478,7 +482,7 @@ func (ah *AuthHandlers) generateTokens(
 	accessToken, err := ah.jwtManager.IssueAccessToken(userID)
 	if err != nil {
 		log.Info("failed to generate access token", slog.String("err", err.Error()))
-		return nil, err
+		return nil, fmt.Errorf("%w", ErrAccessTokenGen)
 	}
 
 	// If refresh-token exists, return it
@@ -494,7 +498,7 @@ func (ah *AuthHandlers) generateTokens(
 	refreshToken, err := ah.jwtManager.IssueRefreshToken(userID)
 	if err != nil {
 		log.Info("failed to generate refresh token", slog.String("err", err.Error()))
-		return nil, err
+		return nil, fmt.Errorf("%w", ErrRefreshTokenGen)
 	}
 
 	expireRefresh := time.Now().Add(ah.jwtManager.GetRefreshExpiresIn())
@@ -507,7 +511,7 @@ func (ah *AuthHandlers) generateTokens(
 	}
 	if err := ah.tokenProvider.SaveRefreshTokenToDB(ctx, refToken); err != nil {
 		log.Error("failed to save refresh token to database", slog.String("err", err.Error()))
-		return nil, err
+		return nil, fmt.Errorf("%w", ErrRefreshTokenStoreDB)
 	}
 
 	// Store refresh-token to Redis
@@ -518,7 +522,7 @@ func (ah *AuthHandlers) generateTokens(
 	}
 	if err := ah.tokenRedisStore.SaveRefreshTokenToRedis(ctx, refTokenToRedis); err != nil {
 		log.Error("failed to save refresh token to redis", slog.String("err", err.Error()))
-		return nil, err
+		return nil, fmt.Errorf("%w", ErrRefreshTokenStoreRedis)
 	}
 
 	return &models.LogInTokens{

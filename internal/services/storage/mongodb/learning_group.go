@@ -158,11 +158,11 @@ func (m *MClient) UpdateLgByID(ctx context.Context, lg *models.DBUpdateLearningG
 	return nil
 }
 
-func (m *MClient) DeleteLgByID(ctx context.Context, id string) error {
+func (m *MClient) DeleteLgByID(ctx context.Context, delG *models.DelGroup) error {
 	const op = "storage.mongodb.DeleteLgByID"
 
 	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
-	filter := bson.M{"_id": id}
+	filter := bson.M{"_id": delG.LgId}
 	_, err := coll.DeleteOne(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
@@ -171,14 +171,33 @@ func (m *MClient) DeleteLgByID(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *MClient) IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error) {
+func (m *MClient) IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error) {
 	const op = "storage.mongodb.IsGroupAdmin"
 
 	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
 	filter := bson.M{
-		"_id": lgID,
+		"_id": lgUser.LgId,
 		"group_admins": bson.M{
-			"$in": []string{uID},
+			"$in": []string{lgUser.UserID},
+		},
+	}
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", op, storage.ErrLgNotFound)
+	}
+	defer cursor.Close(ctx)
+
+	return true, nil
+}
+
+func (m *MClient) IsLearner(ctx context.Context, lgUser *models.GetLgByID) (bool, error) {
+	const op = "storage.mongodb.IsLearner"
+
+	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
+	filter := bson.M{
+		"_id": lgUser.LgId,
+		"learners": bson.M{
+			"$in": []string{lgUser.UserID},
 		},
 	}
 	cursor, err := coll.Find(ctx, filter)

@@ -27,7 +27,7 @@ func (s *serverAPI) CreateLearningGroup(ctx context.Context, req *ssov1.CreateLe
 		case errors.Is(err, learninggroup.ErrGroupExists):
 			return nil, status.Error(codes.AlreadyExists, "learning group exists")
 		default:
-			return nil, status.Error(codes.InvalidArgument, "bad request")
+			return nil, status.Error(codes.Internal, "internal error")
 		}
 	}
 
@@ -37,9 +37,16 @@ func (s *serverAPI) CreateLearningGroup(ctx context.Context, req *ssov1.CreateLe
 }
 
 func (s *serverAPI) GetLearningGroupByID(ctx context.Context, req *ssov1.GetLearningGroupByIDRequest) (*ssov1.GetLearningGroupByIDResponse, error) {
-	lg, err := s.lgh.GetLgByID(ctx, req.GetId())
+	userLg := models.GetLgByID{
+		UserID: req.GetUserId(),
+		LgId:   req.GetLearningGroupId(),
+	}
+
+	lg, err := s.lgh.GetLgByID(ctx, &userLg)
 	if err != nil {
 		switch {
+		case errors.Is(err, learninggroup.ErrPermissionDenied):
+			return nil, status.Error(codes.PermissionDenied, "permissions denied")
 		case errors.Is(err, learninggroup.ErrGroupNotFound):
 			return nil, status.Error(codes.NotFound, "learning group not found")
 		default:
@@ -77,7 +84,8 @@ func (s *serverAPI) GetLearningGroupByID(ctx context.Context, req *ssov1.GetLear
 
 func (s *serverAPI) UpdateLearningGroup(ctx context.Context, req *ssov1.UpdateLearningGroupRequest) (*ssov1.UpdateLearningGroupResponse, error) {
 	lg := models.UpdateLearningGroup{
-		ID:          req.GetId(),
+		UserID:      req.GetUserId(),
+		LgId:        req.GetLearningGroupId(),
 		Name:        req.GetName(),
 		ModifiedBy:  req.GetModifiedBy(),
 		GroupAdmins: req.GetGroupAdmins(),
@@ -85,12 +93,14 @@ func (s *serverAPI) UpdateLearningGroup(ctx context.Context, req *ssov1.UpdateLe
 	}
 	if err := s.lgh.UpdateLearningGroup(ctx, &lg); err != nil {
 		switch {
+		case errors.Is(err, learninggroup.ErrPermissionDenied):
+			return nil, status.Error(codes.PermissionDenied, "permissions denied")
 		case errors.Is(err, learninggroup.ErrGroupNotFound):
 			return nil, status.Error(codes.NotFound, "learning group not found")
 		case errors.Is(err, learninggroup.ErrInvalidCredentials):
 			return nil, status.Error(codes.InvalidArgument, "bad request")
 		default:
-			return nil, status.Error(codes.InvalidArgument, "bad request")
+			return nil, status.Error(codes.Internal, "internal error")
 		}
 	}
 
@@ -100,8 +110,18 @@ func (s *serverAPI) UpdateLearningGroup(ctx context.Context, req *ssov1.UpdateLe
 }
 
 func (s *serverAPI) DeleteLearningGroup(ctx context.Context, req *ssov1.DeleteLearningGroupRequest) (*ssov1.DeleteLearningGroupResponse, error) {
-	if err := s.lgh.DeleteLearningGroup(ctx, req.GetId()); err != nil {
-		return nil, status.Error(codes.InvalidArgument, "bad request")
+	delLg := models.DelGroup{
+		UserID: req.GetUserId(),
+		LgId:   req.GetLearningGroupId(),
+	}
+
+	if err := s.lgh.DeleteLearningGroup(ctx, &delLg); err != nil {
+		switch {
+		case errors.Is(err, learninggroup.ErrPermissionDenied):
+			return nil, status.Error(codes.PermissionDenied, "permissions denied")
+		default:
+			return nil, status.Error(codes.InvalidArgument, "bad request")
+		}
 	}
 
 	return &ssov1.DeleteLearningGroupResponse{
@@ -116,7 +136,7 @@ func (s *serverAPI) GetLearningGroups(ctx context.Context, req *ssov1.GetLearnin
 		case errors.Is(err, learninggroup.ErrGroupNotFound):
 			return nil, status.Error(codes.NotFound, "learning groups not found")
 		default:
-			return nil, status.Error(codes.InvalidArgument, "bad request")
+			return nil, status.Error(codes.Internal, "internal error")
 		}
 	}
 
@@ -139,7 +159,12 @@ func (s *serverAPI) GetLearningGroups(ctx context.Context, req *ssov1.GetLearnin
 }
 
 func (s *serverAPI) IsGroupAdmin(ctx context.Context, req *ssov1.IsGroupAdminRequest) (*ssov1.IsGroupAdminResponse, error) {
-	isGroupAdmin, err := s.lgh.IsGroupAdmin(ctx, req.GetUserId(), req.GetLearningGroupId())
+	isGAdmin := models.IsGroupAdmin{
+		UserID: req.GetUserId(),
+		LgId:   req.GetLearningGroupId(),
+	}
+
+	isGroupAdmin, err := s.lgh.IsGroupAdmin(ctx, &isGAdmin)
 	if err != nil {
 		if errors.Is(err, learninggroup.ErrGroupNotFound) {
 			return nil, status.Error(codes.NotFound, "learning group not found")

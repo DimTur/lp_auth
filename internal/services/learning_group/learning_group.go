@@ -21,11 +21,12 @@ type GroupSaver interface {
 type GroupeProvider interface {
 	GetLgByID(ctx context.Context, id string) (*models.LearningGroup, error)
 	GetLGroupsByUserID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
-	IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error)
+	IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error)
+	IsLearner(ctx context.Context, lgUser *models.GetLgByID) (bool, error)
 }
 
 type GroupeDel interface {
-	DeleteLgByID(ctx context.Context, id string) error
+	DeleteLgByID(ctx context.Context, delG *models.DelGroup) error
 }
 
 var (
@@ -33,6 +34,7 @@ var (
 	ErrInvalidGroupID     = errors.New("invalid group id")
 	ErrGroupExists        = errors.New("group already exists")
 	ErrGroupNotFound      = errors.New("group not found")
+	ErrPermissionDenied   = errors.New("you don't have permissions")
 )
 
 type LgHanglers struct {
@@ -118,17 +120,28 @@ func (lgh *LgHanglers) CreateLearningGroup(ctx context.Context, lg *models.Creat
 }
 
 // GetLgByID returns learning group by ID
-func (lgh *LgHanglers) GetLgByID(ctx context.Context, lgID string) (*models.LearningGroup, error) {
+func (lgh *LgHanglers) GetLgByID(ctx context.Context, userLG *models.GetLgByID) (*models.LearningGroup, error) {
 	const op = "learning_group.GetLgByID"
 
 	log := lgh.log.With(
 		slog.String("op", op),
-		slog.String("learning_group id", lgID),
+		slog.String("user_id", userLG.UserID),
+		slog.String("learning_group_id", userLG.LgId),
 	)
 
 	log.Info("getting learning_group")
 
-	lg, err := lgh.groupeProvider.GetLgByID(ctx, lgID)
+	perm, err := lgh.groupeProvider.IsLearner(ctx, userLG)
+	if err != nil {
+		log.Error("failed to get learning_group", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	if !perm {
+		log.Warn("user does not have permission to access learning_group", slog.String("user_id", userLG.UserID))
+		return nil, fmt.Errorf("%s: %w", op, ErrPermissionDenied)
+	}
+
+	lg, err := lgh.groupeProvider.GetLgByID(ctx, userLG.LgId)
 	if err != nil {
 		switch {
 		case errors.Is(err, storage.ErrLgNotFound):
@@ -174,7 +187,8 @@ func (lgh *LgHanglers) UpdateLearningGroup(ctx context.Context, lg *models.Updat
 
 	log := lgh.log.With(
 		slog.String("op", op),
-		slog.String("learning_group id", lg.ID),
+		slog.String("user_id", lg.UserID),
+		slog.String("learning_group_id", lg.LgId),
 	)
 
 	// Validation
@@ -186,8 +200,22 @@ func (lgh *LgHanglers) UpdateLearningGroup(ctx context.Context, lg *models.Updat
 
 	log.Info("updating learning_group")
 
+	isGAdmin := &models.IsGroupAdmin{
+		UserID: lg.UserID,
+		LgId:   lg.LgId,
+	}
+	perm, err := lgh.groupeProvider.IsGroupAdmin(ctx, isGAdmin)
+	if err != nil {
+		log.Error("failed to get learning_group", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	if !perm {
+		log.Warn("user does not have permission to update learning_group", slog.String("user_id", lg.UserID))
+		return fmt.Errorf("%s: %w", op, ErrPermissionDenied)
+	}
+
 	updLgGroup := &models.DBUpdateLearningGroup{
-		ID:          lg.ID,
+		ID:          lg.LgId,
 		Name:        lg.Name,
 		ModifiedBy:  lg.ModifiedBy,
 		Updated:     time.Now(),
@@ -209,17 +237,32 @@ func (lgh *LgHanglers) UpdateLearningGroup(ctx context.Context, lg *models.Updat
 }
 
 // DeleteLearningGroup deletes learning group by ID
-func (lgh *LgHanglers) DeleteLearningGroup(ctx context.Context, id string) error {
+func (lgh *LgHanglers) DeleteLearningGroup(ctx context.Context, lgUser *models.DelGroup) error {
 	const op = "learning_group.DeleteLearningGroup"
 
 	log := lgh.log.With(
 		slog.String("op", op),
-		slog.String("learning_group id", id),
+		slog.String("user_id", lgUser.UserID),
+		slog.String("learning_group_id", lgUser.LgId),
 	)
 
 	log.Info("deleting learning_group")
 
-	if err := lgh.groupeDel.DeleteLgByID(ctx, id); err != nil {
+	isGAdmin := &models.IsGroupAdmin{
+		UserID: lgUser.UserID,
+		LgId:   lgUser.LgId,
+	}
+	perm, err := lgh.groupeProvider.IsGroupAdmin(ctx, isGAdmin)
+	if err != nil {
+		log.Error("failed to get learning_group", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	if !perm {
+		log.Warn("user does not have permission to delete learning_group", slog.String("user_id", lgUser.UserID))
+		return fmt.Errorf("%s: %w", op, ErrPermissionDenied)
+	}
+
+	if err := lgh.groupeDel.DeleteLgByID(ctx, lgUser); err != nil {
 		log.Error("failed to delete learning_group", slog.String("err", err.Error()))
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -228,18 +271,18 @@ func (lgh *LgHanglers) DeleteLearningGroup(ctx context.Context, id string) error
 }
 
 // IsGroupAdmin checks if the user is a group administrator
-func (lgh *LgHanglers) IsGroupAdmin(ctx context.Context, uID, lgID string) (bool, error) {
+func (lgh *LgHanglers) IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error) {
 	const op = "learning_group.IsGroupAdmin"
 
 	log := lgh.log.With(
 		slog.String("op", op),
-		slog.String("user_id", uID),
-		slog.String("learning_group_id", lgID),
+		slog.String("user_id", lgUser.UserID),
+		slog.String("learning_group_id", lgUser.LgId),
 	)
 
 	log.Info("checkin group_admin permissions")
 
-	role, err := lgh.groupeProvider.IsGroupAdmin(ctx, uID, lgID)
+	role, err := lgh.groupeProvider.IsGroupAdmin(ctx, lgUser)
 	if err != nil {
 		switch {
 		case errors.Is(err, storage.ErrLgNotFound):
