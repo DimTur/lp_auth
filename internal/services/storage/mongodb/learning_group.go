@@ -32,13 +32,16 @@ func (m *MClient) SaveLg(ctx context.Context, lg *models.DBCreateLearningGroup) 
 	return nil
 }
 
-func (m *MClient) GetLgByID(ctx context.Context, id string) (*models.LearningGroup, error) {
+func (m *MClient) GetLgByID(ctx context.Context, userLG *models.GetLgByID) (*models.LearningGroup, error) {
 	const op = "storage.mongodb.GetLgByID"
 
 	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
 
 	pipeline := mongo.Pipeline{
-		{{Key: "$match", Value: bson.D{{Key: "_id", Value: id}}}},
+		{{Key: "$match", Value: bson.D{
+			{Key: "_id", Value: userLG.LgId},
+			{Key: "learners", Value: bson.D{{Key: "$in", Value: bson.A{userLG.UserID}}}},
+		}}},
 		{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: CollAuth},
 			{Key: "localField", Value: "learners"},

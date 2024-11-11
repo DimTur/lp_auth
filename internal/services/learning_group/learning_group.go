@@ -19,7 +19,7 @@ type GroupSaver interface {
 }
 
 type GroupeProvider interface {
-	GetLgByID(ctx context.Context, id string) (*models.LearningGroup, error)
+	GetLgByID(ctx context.Context, userLG *models.GetLgByID) (*models.LearningGroup, error)
 	GetLGroupsByUserID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
 	IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error)
 	IsLearner(ctx context.Context, lgUser *models.GetLgByID) (bool, error)
@@ -141,7 +141,7 @@ func (lgh *LgHanglers) GetLgByID(ctx context.Context, userLG *models.GetLgByID) 
 		return nil, fmt.Errorf("%s: %w", op, ErrPermissionDenied)
 	}
 
-	lg, err := lgh.groupeProvider.GetLgByID(ctx, userLG.LgId)
+	lg, err := lgh.groupeProvider.GetLgByID(ctx, userLG)
 	if err != nil {
 		switch {
 		case errors.Is(err, storage.ErrLgNotFound):
