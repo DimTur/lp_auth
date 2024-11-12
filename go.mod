@@ -3,6 +3,7 @@ module github.com/DimTur/lp_auth
 go 1.23.0
 
 require (
+	github.com/DimTur/lp_protos v0.0.9
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/rabbitmq/amqp091-go v1.10.0
@@ -10,7 +11,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	go.mongodb.org/mongo-driver/v2 v2.0.0-beta2
 	google.golang.org/grpc v1.66.0
-	google.golang.org/protobuf v1.34.2
 )
 
 require (
@@ -32,6 +32,7 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/sync v0.8.0 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
 

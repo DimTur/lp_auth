@@ -7,7 +7,7 @@ import (
 
 	"github.com/DimTur/lp_auth/internal/domain/models"
 	learninggroup "github.com/DimTur/lp_auth/internal/services/learning_group"
-	ssov1 "github.com/DimTur/lp_auth/pkg/server/grpc"
+	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

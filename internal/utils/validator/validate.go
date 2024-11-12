@@ -3,7 +3,7 @@ package validator
 import (
 	"regexp"
 
-	ssov1 "github.com/DimTur/lp_auth/pkg/server/grpc"
+	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

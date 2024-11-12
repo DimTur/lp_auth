@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/DimTur/lp_auth/internal/domain/models"
-	ssov1 "github.com/DimTur/lp_auth/pkg/server/grpc"
+	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
 	"google.golang.org/grpc"
 )
 
