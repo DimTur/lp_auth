@@ -23,6 +23,8 @@ type GroupeProvider interface {
 	GetLGroupsByUserID(ctx context.Context, userID string) ([]*models.LearningGroupShort, error)
 	IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error)
 	IsLearner(ctx context.Context, lgUser *models.GetLgByID) (bool, error)
+	GetUserIsGroupAdminIn(ctx context.Context, user *models.UserIsGroupAdminIn) ([]string, error)
+	GetUserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error)
 }
 
 type GroupeDel interface {
@@ -35,6 +37,7 @@ var (
 	ErrGroupExists        = errors.New("group already exists")
 	ErrGroupNotFound      = errors.New("group not found")
 	ErrPermissionDenied   = errors.New("you don't have permissions")
+	ErrUserNotFound       = errors.New("user not found")
 )
 
 type LgHanglers struct {
@@ -302,4 +305,56 @@ func (lgh *LgHanglers) IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupA
 	log.Info("checked user is group_admin", slog.Bool("is_groupe_admin", true))
 
 	return true, nil
+}
+
+// UserIsGroupAdminIn returns id array where user is group admin
+func (lgh *LgHanglers) UserIsGroupAdminIn(ctx context.Context, user *models.UserIsGroupAdminIn) ([]string, error) {
+	const op = "learning_group.UserIsGroupAdminIn"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("user_id", user.UserID),
+	)
+
+	log.Info("checkin group_admin permissions")
+
+	lgIDs, err := lgh.groupeProvider.GetUserIsGroupAdminIn(ctx, user)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrUserNotFound):
+			log.Warn("learning_group not found", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		default:
+			log.Error("user not a group admin", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	return lgIDs, nil
+}
+
+// UserIsLearnerIn returns id array where user is learner
+func (lgh *LgHanglers) UserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error) {
+	const op = "learning_group.UserIsUserIsLearnerInGroupAdminIn"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("user_id", user.UserID),
+	)
+
+	log.Info("checkin learner permissions")
+
+	lgIDs, err := lgh.groupeProvider.GetUserIsLearnerIn(ctx, user)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrUserNotFound):
+			log.Warn("learning_group not found", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		default:
+			log.Error("user not a learner", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	return lgIDs, nil
 }

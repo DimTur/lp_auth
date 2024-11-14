@@ -211,3 +211,71 @@ func (m *MClient) IsLearner(ctx context.Context, lgUser *models.GetLgByID) (bool
 
 	return true, nil
 }
+
+func (m *MClient) GetUserIsGroupAdminIn(ctx context.Context, user *models.UserIsGroupAdminIn) ([]string, error) {
+	const op = "storage.mongodb.GetUserIsGroupAdminIn"
+
+	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
+	filter := bson.M{
+		"group_admins": bson.M{
+			"$in": []string{user.UserID},
+		},
+	}
+
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+	}
+	defer cursor.Close(ctx)
+
+	var groupIDs []string
+	for cursor.Next(ctx) {
+		var result struct {
+			ID string `bson:"_id"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		groupIDs = append(groupIDs, result.ID)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return groupIDs, nil
+}
+
+func (m *MClient) GetUserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error) {
+	const op = "storage.mongodb.GetUserIsLearnerIn"
+
+	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
+	filter := bson.M{
+		"learners": bson.M{
+			"$in": []string{user.UserID},
+		},
+	}
+
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+	}
+	defer cursor.Close(ctx)
+
+	var groupIDs []string
+	for cursor.Next(ctx) {
+		var result struct {
+			ID string `bson:"_id"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		groupIDs = append(groupIDs, result.ID)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return groupIDs, nil
+}

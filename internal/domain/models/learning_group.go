@@ -42,6 +42,14 @@ type IsGroupAdmin struct {
 	LgId   string `json:"learning_group_id" validate:"required"`
 }
 
+type UserIsGroupAdminIn struct {
+	UserID string `json:"user_id" validate:"required"`
+}
+
+type UserIsLearnerIn struct {
+	UserID string `json:"user_id" validate:"required"`
+}
+
 type DelGroup struct {
 	UserID string `json:"user_id" validate:"required"`
 	LgId   string `json:"learning_group_id" validate:"required"`

@@ -3,7 +3,7 @@ module github.com/DimTur/lp_auth
 go 1.23.0
 
 require (
-	github.com/DimTur/lp_protos v0.0.9
+	github.com/DimTur/lp_protos v0.1.9
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/rabbitmq/amqp091-go v1.10.0

@@ -30,6 +30,8 @@ type LGHAndlers interface {
 	UpdateLearningGroup(ctx context.Context, lg *models.UpdateLearningGroup) error
 	DeleteLearningGroup(ctx context.Context, lgUser *models.DelGroup) error
 	IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error)
+	UserIsGroupAdminIn(ctx context.Context, user *models.UserIsGroupAdminIn) ([]string, error)
+	UserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error)
 }
 
 type serverAPI struct {

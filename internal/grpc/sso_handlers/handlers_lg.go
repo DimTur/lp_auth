@@ -177,3 +177,41 @@ func (s *serverAPI) IsGroupAdmin(ctx context.Context, req *ssov1.IsGroupAdminReq
 		IsGroupAdmin: isGroupAdmin,
 	}, nil
 }
+
+func (s *serverAPI) UserIsGroupAdminIn(ctx context.Context, req *ssov1.IsUserGroupAdminInRequest) (*ssov1.IsUserGroupAdminInResponse, error) {
+	u := models.UserIsGroupAdminIn{
+		UserID: req.GetUserId(),
+	}
+
+	lgIDs, err := s.lgh.UserIsGroupAdminIn(ctx, &u)
+	if err != nil {
+		if errors.Is(err, learninggroup.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.IsUserGroupAdminInResponse{
+		LearningGroupIds: lgIDs,
+	}, nil
+}
+
+func (s *serverAPI) IsUserLearnerIn(ctx context.Context, req *ssov1.IsUserLearnereInRequest) (*ssov1.IsUserLearnereInResponse, error) {
+	u := models.UserIsLearnerIn{
+		UserID: req.GetUserId(),
+	}
+
+	lgIDs, err := s.lgh.UserIsLearnerIn(ctx, &u)
+	if err != nil {
+		if errors.Is(err, learninggroup.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &ssov1.IsUserLearnereInResponse{
+		LearningGroupIds: lgIDs,
+	}, nil
+}
