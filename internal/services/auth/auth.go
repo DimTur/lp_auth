@@ -35,6 +35,7 @@ type UserProvider interface {
 	FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error)
 	GetUserRoles(ctx context.Context, userID string) (*models.UserRoles, error)
 	GetExistChatID(ctx context.Context, userID string) (string, error)
+	GetUsersInfoBatch(ctx context.Context, userIDs []string) ([]models.UserNotification, error)
 }
 
 type TokenProvider interface {

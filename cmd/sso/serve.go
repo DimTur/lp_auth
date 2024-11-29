@@ -1,6 +1,7 @@
 package sso
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -77,50 +78,34 @@ func NewServeCmd() *cobra.Command {
 			}
 
 			// Init RabbitMQ
-			rmqUrl := fmt.Sprintf(
-				"amqp://%s:%s@%s:%d/",
-				cfg.RabbitMQ.UserName,
-				cfg.RabbitMQ.Password,
-				cfg.RabbitMQ.Host,
-				cfg.RabbitMQ.Port,
-			)
-			rmq, err := rabbitmq.NewClient(rmqUrl)
+			rmq, err := initRabbitMQ(cfg)
 			if err != nil {
 				log.Error("failed init rabbit mq", slog.Any("err", err))
 			}
 
 			// Declare OTP exchange
-			if err := rmq.DeclareExchange(
-				cfg.RabbitMQ.OTP.OTPExchange.Name,
-				cfg.RabbitMQ.OTP.OTPExchange.Kind,
-				cfg.RabbitMQ.OTP.OTPExchange.Durable,
-				cfg.RabbitMQ.OTP.OTPExchange.AutoDeleted,
-				cfg.RabbitMQ.OTP.OTPExchange.Internal,
-				cfg.RabbitMQ.OTP.OTPExchange.NoWait,
-				cfg.RabbitMQ.OTP.OTPExchange.Args.ToMap(),
-			); err != nil {
+			if err := declareOTPExchange(rmq, cfg); err != nil {
 				log.Error("failed to declare OTP exchange", slog.Any("err", err))
 			}
 
-			// Declare OTP Queue
-			if _, err := rmq.DeclareQueue(
-				cfg.RabbitMQ.OTP.OTPQueue.Name,
-				cfg.RabbitMQ.OTP.OTPQueue.Durable,
-				cfg.RabbitMQ.OTP.OTPQueue.AutoDeleted,
-				cfg.RabbitMQ.OTP.OTPQueue.Exclusive,
-				cfg.RabbitMQ.OTP.OTPQueue.NoWait,
-				cfg.RabbitMQ.OTP.OTPQueue.Args.ToMap(),
-			); err != nil {
-				log.Error("failed to declare OTP queue", slog.Any("err", err))
-			}
-
-			// Bind OTP queue to OTP exchange
-			if err := rmq.BindQueueToExchange(
-				cfg.RabbitMQ.OTP.OTPQueue.Name,
+			// Declare and bind OTP Queue
+			if err := declareQueueAndBind(
+				rmq,
+				cfg.RabbitMQ.OTP.OTPQueue,
 				cfg.RabbitMQ.OTP.OTPExchange.Name,
 				cfg.RabbitMQ.OTP.OTPRoutingKey,
 			); err != nil {
-				log.Error("failed to bind OTP queue", slog.Any("err", err))
+				log.Error("failed to declare and bind OTP Queue", slog.Any("err", err))
+			}
+
+			// Declare and bind Notification Queue
+			if err := declareQueueAndBind(
+				rmq,
+				cfg.RabbitMQ.Notification.NotificationQueue,
+				cfg.RabbitMQ.Notification.NotificationExchange.Name,
+				cfg.RabbitMQ.Notification.NotificationRoutingKey,
+			); err != nil {
+				log.Error("failed to declare and bind Notification Queue", slog.Any("err", err))
 			}
 
 			validate := validator.New()
@@ -144,14 +129,7 @@ func NewServeCmd() *cobra.Command {
 				return err
 			}
 
-			consumer := consumer.NewConsumeOTP(rmq, storage, log)
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err := consumer.Start(ctx, cfg.RabbitMQ.ChatIDQueue.Name); err != nil {
-					log.Error("failed to start chat_id consumer", slog.Any("err", err))
-				}
-			}()
+			startConsumers(ctx, cfg, rmq, storage, log, &wg)
 
 			grpcCloser, err := application.GRPCSrv.Run()
 			if err != nil {
@@ -171,4 +149,97 @@ func NewServeCmd() *cobra.Command {
 
 	c.Flags().StringVar(&configPath, "config", "", "path to config")
 	return c
+}
+
+func initRabbitMQ(cfg *config.Config) (*rabbitmq.RMQClient, error) {
+	rmqUrl := fmt.Sprintf(
+		"amqp://%s:%s@%s:%d/",
+		cfg.RabbitMQ.UserName,
+		cfg.RabbitMQ.Password,
+		cfg.RabbitMQ.Host,
+		cfg.RabbitMQ.Port,
+	)
+	return rabbitmq.NewClient(rmqUrl)
+}
+
+func startConsumers(
+	ctx context.Context,
+	cfg *config.Config,
+	rmq *rabbitmq.RMQClient,
+	authStorage app.AuthStorage,
+	log *slog.Logger,
+	wg *sync.WaitGroup,
+) {
+	chatConsumer := consumer.NewConsumeChat(rmq, authStorage, log)
+	shareConsumer := consumer.NewConsumeShare(rmq, authStorage, rmq, log)
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if err := chatConsumer.Start(
+			ctx,
+			cfg.RabbitMQ.ChatID.ChatConsumer.Queue,
+			cfg.RabbitMQ.ChatID.ChatConsumer.Consumer,
+			cfg.RabbitMQ.ChatID.ChatConsumer.AutoAck,
+			cfg.RabbitMQ.ChatID.ChatConsumer.Exclusive,
+			cfg.RabbitMQ.ChatID.ChatConsumer.NoLocal,
+			cfg.RabbitMQ.ChatID.ChatConsumer.NoWait,
+			cfg.RabbitMQ.ChatID.ChatConsumer.ConsumerArgs.ToMap(),
+		); err != nil {
+			log.Error("failed to start chat consumer", slog.Any("err", err))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := shareConsumer.Start(
+			ctx,
+			cfg.RabbitMQ.Notification.NotificationConsumer.Queue,
+			cfg.RabbitMQ.Notification.NotificationConsumer.Consumer,
+			cfg.RabbitMQ.Notification.NotificationConsumer.AutoAck,
+			cfg.RabbitMQ.Notification.NotificationConsumer.Exclusive,
+			cfg.RabbitMQ.Notification.NotificationConsumer.NoLocal,
+			cfg.RabbitMQ.Notification.NotificationConsumer.NoWait,
+			cfg.RabbitMQ.Notification.NotificationConsumer.ConsumerArgs.ToMap(),
+		); err != nil {
+			log.Error("failed to start share plans consumer", slog.Any("err", err))
+		}
+	}()
+}
+
+func declareQueueAndBind(rmq *rabbitmq.RMQClient, queueConfig config.QueueConfig, exchangeName, routingKey string) error {
+	// Announcement of the queue
+	if _, err := rmq.DeclareQueue(
+		queueConfig.Name,
+		queueConfig.Durable,
+		queueConfig.AutoDeleted,
+		queueConfig.Exclusive,
+		queueConfig.NoWait,
+		queueConfig.Args.ToMap(),
+	); err != nil {
+		return fmt.Errorf("failed to declare queue %s: %w", queueConfig.Name, err)
+	}
+
+	// Binding a queue to an exchange
+	if err := rmq.BindQueueToExchange(
+		queueConfig.Name,
+		exchangeName,
+		routingKey,
+	); err != nil {
+		return fmt.Errorf("failed to bind queue %s to exchange %s: %w", queueConfig.Name, exchangeName, err)
+	}
+
+	return nil
+}
+
+func declareOTPExchange(rmq *rabbitmq.RMQClient, cfg *config.Config) error {
+	return rmq.DeclareExchange(
+		cfg.RabbitMQ.OTP.OTPExchange.Name,
+		cfg.RabbitMQ.OTP.OTPExchange.Kind,
+		cfg.RabbitMQ.OTP.OTPExchange.Durable,
+		cfg.RabbitMQ.OTP.OTPExchange.AutoDeleted,
+		cfg.RabbitMQ.OTP.OTPExchange.Internal,
+		cfg.RabbitMQ.OTP.OTPExchange.NoWait,
+		cfg.RabbitMQ.OTP.OTPExchange.Args.ToMap(),
+	)
 }

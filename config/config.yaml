@@ -11,8 +11,35 @@ rabbit_mq:
   password: guest
   host: localhost
   port: 5672
-  chat_id_queue:
-    name: chat_id
+  chat:
+    chat_id_queue:
+      name: chat_id
+    chat_consumer:
+      queue: chat_id
+      consumer: ""
+      autoAck: false
+      exclusive: false
+      noLocal: false
+      noWait: false
+      args:
+        x-consumer-timeout: 60000
+        x-consumer-prefetch-count: 5
+  notification:
+    notification_queue:
+      name: notification
+    notification_exchange:
+      name: share
+    notification_consumer:
+      queue: notification_to_auth
+      consumer: ""
+      autoAck: false
+      exclusive: false
+      noLocal: false
+      noWait: false
+      args:
+        x-consumer-timeout: 60000
+        x-consumer-prefetch-count: 5
+    notification_routing_key: notification
   otp:
     otp_exchange:
       name: otp

@@ -79,3 +79,10 @@ type UserRoles struct {
 type UserChatID struct {
 	ChatID string `json:"chat_id" bson:"chat_id"`
 }
+
+type UserNotification struct {
+	UserID string `bson:"_id"`
+	Email  string `bson:"email"`
+	TgLink string `bson:"tg_link"`
+	ChatID string `bson:"chat_id"`
+}

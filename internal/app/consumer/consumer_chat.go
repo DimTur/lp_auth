@@ -20,7 +20,13 @@ var (
 )
 
 type MessageQueue interface {
-	Consume(ctx context.Context, queueName string, handle func(ctx context.Context, msg interface{}) error) error
+	Consume(
+		ctx context.Context,
+		queueName, consumer string,
+		autoAck, exclusive, noLocal, noWait bool,
+		args map[string]interface{},
+		handle func(ctx context.Context, msg interface{}) error,
+	) error
 }
 
 type AuthStorage interface {
@@ -34,7 +40,7 @@ type ConsumeUserChatID struct {
 	logger      *slog.Logger
 }
 
-func NewConsumeOTP(
+func NewConsumeChat(
 	msgQueue MessageQueue,
 	authStorage AuthStorage,
 	logger *slog.Logger,
@@ -46,13 +52,28 @@ func NewConsumeOTP(
 	}
 }
 
-func (c *ConsumeUserChatID) Start(ctx context.Context, queueName string) error {
-	const op = "ConsumeOTP.Start"
+func (c *ConsumeUserChatID) Start(
+	ctx context.Context,
+	queueName, consumer string,
+	autoAck, exclusive, noLocal, noWait bool,
+	args map[string]interface{},
+) error {
+	const op = "NewConsumeChat.Start"
 
 	log := c.logger.With(slog.String("op", op))
 	log.Info("Starting to consume OTP messages")
 
-	return c.msgQueue.Consume(ctx, queueName, c.handleMessage)
+	return c.msgQueue.Consume(
+		ctx,
+		queueName,
+		consumer,
+		autoAck,
+		exclusive,
+		noLocal,
+		noWait,
+		args,
+		c.handleMessage,
+	)
 }
 
 func (c *ConsumeUserChatID) handleMessage(ctx context.Context, msg interface{}) error {

@@ -25,86 +25,6 @@ type MongoDB struct {
 	Password string `yaml:"password"`
 }
 
-type Redis struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	TokenDB  int    `yaml:"token_db"`
-	OtpDB    int    `yaml:"otp_db"`
-	Password string `yaml:"password"`
-}
-
-type RabbitMQ struct {
-	UserName    string      `yaml:"username"`
-	Password    string      `yaml:"password"`
-	Host        string      `yaml:"host"`
-	Port        int         `yaml:"port"`
-	ChatIDQueue ChatIDQueue `yaml:"chat_id_queue"`
-	OTP         OTP         `yaml:"otp"`
-	Role        Role        `yaml:"role"`
-}
-
-type ChatIDQueue struct {
-	Name string `yaml:"name"`
-}
-
-type OTP struct {
-	OTPExchange   OTPExchange `yaml:"otp_exchange"`
-	OTPQueue      OTPQueue    `yaml:"otp_queue"`
-	OTPRoutingKey string      `yaml:"otp_routing_key"`
-}
-
-type Role struct {
-	RoleExchange   OTPExchange `yaml:"role_exchange"`
-	RoleQueue      OTPQueue    `yaml:"role_queue"`
-	RoleRoutingKey string      `yaml:"role_routing_key"`
-}
-
-type OTPExchange struct {
-	Name        string       `yaml:"name"`
-	Kind        string       `yaml:"kind"`
-	Durable     bool         `yaml:"durable"`
-	AutoDeleted bool         `yaml:"auto_deleted"`
-	Internal    bool         `yaml:"internal"`
-	NoWait      bool         `yaml:"no_wait"`
-	Args        ExchangeArgs `yaml:"args"`
-}
-
-type RoleExchange struct {
-	Name        string       `yaml:"name"`
-	Kind        string       `yaml:"kind"`
-	Durable     bool         `yaml:"durable"`
-	AutoDeleted bool         `yaml:"auto_deleted"`
-	Internal    bool         `yaml:"internal"`
-	NoWait      bool         `yaml:"no_wait"`
-	Args        ExchangeArgs `yaml:"args"`
-}
-
-type ExchangeArgs struct {
-	AltExchange string `yaml:"alternate_exchange"`
-}
-
-type OTPQueue struct {
-	Name        string    `yaml:"name"`
-	Durable     bool      `yaml:"durable"`
-	AutoDeleted bool      `yaml:"auto_deleted"`
-	Exclusive   bool      `yaml:"exclusive"`
-	NoWait      bool      `yaml:"no_wait"`
-	Args        QueueArgs `yaml:"args"`
-}
-
-type RoleQueue struct {
-	Name        string    `yaml:"name"`
-	Durable     bool      `yaml:"durable"`
-	AutoDeleted bool      `yaml:"auto_deleted"`
-	Exclusive   bool      `yaml:"exclusive"`
-	NoWait      bool      `yaml:"no_wait"`
-	Args        QueueArgs `yaml:"args"`
-}
-
-type QueueArgs struct {
-	XMessageTtl int32 `yaml:"x_message_ttl"`
-}
-
 type JWT struct {
 	Issuer           string        `yaml:"issuer"`
 	AccessExpiresIn  time.Duration `yaml:"access_expires_in"`
@@ -135,16 +55,4 @@ func Parse(s string) (*Config, error) {
 	c.JWT.PublicKeyTest = string(publicKey)
 
 	return c, nil
-}
-
-func (e ExchangeArgs) ToMap() map[string]interface{} {
-	return map[string]interface{}{
-		"alternate-exchange": e.AltExchange,
-	}
-}
-
-func (q QueueArgs) ToMap() map[string]interface{} {
-	return map[string]interface{}{
-		"x-message-ttl": q.XMessageTtl,
-	}
 }

@@ -179,3 +179,29 @@ func (m *MClient) GetExistChatID(ctx context.Context, userID string) (string, er
 
 	return chatID.ChatID, nil
 }
+
+func (m *MClient) GetUsersInfoBatch(ctx context.Context, userIDs []string) ([]models.UserNotification, error) {
+	const op = "storage.mongodb.GetUsersInfoBatch"
+
+	coll := m.client.Database(m.dbname).Collection(CollAuth)
+	filter := bson.M{
+		"user_id": bson.M{"$in": userIDs},
+	}
+
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+		}
+
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer cursor.Close(ctx)
+
+	var users []models.UserNotification
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return users, nil
+}
