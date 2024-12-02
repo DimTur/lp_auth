@@ -178,7 +178,7 @@ func (s *serverAPI) IsGroupAdmin(ctx context.Context, req *ssov1.IsGroupAdminReq
 	}, nil
 }
 
-func (s *serverAPI) UserIsGroupAdminIn(ctx context.Context, req *ssov1.IsUserGroupAdminInRequest) (*ssov1.IsUserGroupAdminInResponse, error) {
+func (s *serverAPI) IsUserGroupAdminIn(ctx context.Context, req *ssov1.IsUserGroupAdminInRequest) (*ssov1.IsUserGroupAdminInResponse, error) {
 	u := models.UserIsGroupAdminIn{
 		UserID: req.GetUserId(),
 	}

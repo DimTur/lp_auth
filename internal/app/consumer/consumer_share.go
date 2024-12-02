@@ -68,7 +68,7 @@ func (c *ConsumerGetNotifications) Start(ctx context.Context,
 
 func (c *ConsumerGetNotifications) handleMessage(ctx context.Context, msg interface{}) error {
 	const (
-		op        = "consumer_channels.handleMessage"
+		op        = "consumer_share.handleMessage"
 		batchSize = 1
 	)
 
@@ -89,7 +89,10 @@ func (c *ConsumerGetNotifications) handleMessage(ctx context.Context, msg interf
 		return err
 	}
 
+	log.Info("message", slog.Any("message", message))
+
 	batches := splitIntoBatches(message.UserIDs, batchSize)
+	log.Info("batches", slog.Any("batches", batches))
 	for _, batch := range batches {
 		userInfos, err := c.authStorage.GetUsersInfoBatch(ctx, batch)
 		if err != nil {
@@ -101,6 +104,7 @@ func (c *ConsumerGetNotifications) handleMessage(ctx context.Context, msg interf
 			)
 			continue
 		}
+		log.Info("userInfos", slog.Any("userInfos", userInfos))
 
 		for _, user := range userInfos {
 			newMsg := struct {
@@ -120,24 +124,25 @@ func (c *ConsumerGetNotifications) handleMessage(ctx context.Context, msg interf
 				CreatedBy: message.CreatedBy,
 			}
 
+			fmt.Println("newMsg", newMsg)
 			msgBody, err := json.Marshal(newMsg)
 			if err != nil {
 				log.Error("Failed to marshal message", slog.Any("err", err))
 				return fmt.Errorf("%s: %w", op, err)
 			}
 
+			log.Info(
+				"successfully",
+				slog.Int64("splan", newMsg.PlanID),
+				slog.Any("with_users", newMsg.UserID),
+			)
+
 			if err := c.rabbitMQQueues.Publish(ctx, exchange, routingKey, msgBody); err != nil {
-				log.Error("err send sharing plan to exchange", slog.String("err", err.Error()))
+				log.Error("err send sharing notification to exchange", slog.String("err", err.Error()))
 				return fmt.Errorf("%s: %w", op, err)
 			}
 		}
 	}
-
-	log.Info(
-		"successfully",
-		slog.Int64("splan", message.PlanID),
-		slog.Any("with_users", message.UserIDs),
-	)
 
 	return nil
 }

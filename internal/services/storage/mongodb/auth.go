@@ -185,7 +185,7 @@ func (m *MClient) GetUsersInfoBatch(ctx context.Context, userIDs []string) ([]mo
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
 	filter := bson.M{
-		"user_id": bson.M{"$in": userIDs},
+		"_id": bson.M{"$in": userIDs},
 	}
 
 	cursor, err := coll.Find(ctx, filter)
