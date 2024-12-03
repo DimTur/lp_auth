@@ -108,6 +108,16 @@ func NewServeCmd() *cobra.Command {
 				log.Error("failed to declare and bind Notification Queue", slog.Any("err", err))
 			}
 
+			// Declare and bind SPFU Queue
+			if err := declareQueueAndBind(
+				rmq,
+				cfg.RabbitMQ.Spfu.SpfuQueue,
+				cfg.RabbitMQ.Spfu.SpfuExchange.Name,
+				cfg.RabbitMQ.Spfu.SpfuRoutingKey,
+			); err != nil {
+				log.Error("failed to declare and spfu Notification Queue", slog.Any("err", err))
+			}
+
 			validate := validator.New()
 
 			application, err := app.NewApp(

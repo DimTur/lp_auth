@@ -32,6 +32,7 @@ type LGHAndlers interface {
 	IsGroupAdmin(ctx context.Context, lgUser *models.IsGroupAdmin) (bool, error)
 	UserIsGroupAdminIn(ctx context.Context, user *models.UserIsGroupAdminIn) ([]string, error)
 	UserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error)
+	GetLearners(ctx context.Context, lgID *models.GetLearners) ([]string, error)
 }
 
 type serverAPI struct {

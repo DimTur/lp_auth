@@ -59,6 +59,16 @@ rabbit_mq:
       args:
         x_message_ttl: 60000
     otp_routing_key: otp
+  spfu:
+    spfu_exchange:
+      name: share
+    spfu_queue:
+      name: spfu
+      durable: true
+      auto_deleted: false
+      exclusive: false
+      no_wait: false
+    spfu_routing_key: spfu
 redis:
   host: localhost
   port: 6379

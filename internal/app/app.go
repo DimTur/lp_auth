@@ -87,6 +87,7 @@ func NewApp(
 		groupStorage,
 		groupStorage,
 		groupStorage,
+		authRabbitMq,
 	)
 
 	grpcServer, err := grpcapp.NewGRPCServer(

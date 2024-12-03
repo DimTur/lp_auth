@@ -2,6 +2,7 @@ package learninggroup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,11 @@ import (
 	"github.com/DimTur/lp_auth/internal/domain/models"
 	"github.com/DimTur/lp_auth/internal/services/storage"
 	"github.com/go-playground/validator/v10"
+)
+
+const (
+	exchangeShare  = "share"
+	spfuRoutingKey = "spfu"
 )
 
 type GroupSaver interface {
@@ -25,6 +31,12 @@ type GroupeProvider interface {
 	IsLearner(ctx context.Context, lgUser *models.GetLgByID) (bool, error)
 	GetUserIsGroupAdminIn(ctx context.Context, user *models.UserIsGroupAdminIn) ([]string, error)
 	GetUserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error)
+	GetLearners(ctx context.Context, lgID *models.GetLearners) ([]string, error)
+}
+
+type RabbitMQQueues interface {
+	Publish(ctx context.Context, exchange, routingKey string, body []byte) error
+	PublishToQueue(ctx context.Context, queueName string, body []byte) error
 }
 
 type GroupeDel interface {
@@ -46,6 +58,7 @@ type LgHanglers struct {
 	groupSaver     GroupSaver
 	groupeProvider GroupeProvider
 	groupeDel      GroupeDel
+	rabbitMQQueues RabbitMQQueues
 }
 
 func New(
@@ -54,6 +67,7 @@ func New(
 	groupSaver GroupSaver,
 	groupeProvider GroupeProvider,
 	groupeDel GroupeDel,
+	rabbitMQQueues RabbitMQQueues,
 ) *LgHanglers {
 	return &LgHanglers{
 		log:            log,
@@ -61,6 +75,7 @@ func New(
 		groupSaver:     groupSaver,
 		groupeProvider: groupeProvider,
 		groupeDel:      groupeDel,
+		rabbitMQQueues: rabbitMQQueues,
 	}
 }
 
@@ -236,6 +251,31 @@ func (lgh *LgHanglers) UpdateLearningGroup(ctx context.Context, lg *models.Updat
 		}
 	}
 
+	if len(lg.Learners) != 0 {
+		msg := models.Spfu{
+			LearningGroupID: lg.LgId,
+			UserIDs:         lg.Learners,
+			CreatedBy:       lg.ModifiedBy,
+		}
+
+		// Serialization and publication message
+		msgBody, err := json.Marshal(msg)
+		if err != nil {
+			log.Error("failed to marshal msg request", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		if err = lgh.rabbitMQQueues.Publish(ctx, exchangeShare, spfuRoutingKey, msgBody); err != nil {
+			log.Error("failed to publish batch request to spfu queue", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		log.Info("learners sent to share with learning group id",
+			slog.Any("user_ids", lg.Learners),
+			slog.String("learning_group_id", lg.LgId),
+		)
+	}
+
 	return nil
 }
 
@@ -335,7 +375,7 @@ func (lgh *LgHanglers) UserIsGroupAdminIn(ctx context.Context, user *models.User
 
 // UserIsLearnerIn returns id array where user is learner
 func (lgh *LgHanglers) UserIsLearnerIn(ctx context.Context, user *models.UserIsLearnerIn) ([]string, error) {
-	const op = "learning_group.UserIsUserIsLearnerInGroupAdminIn"
+	const op = "learning_group.UserIsLearnerIn"
 
 	log := lgh.log.With(
 		slog.String("op", op),
@@ -357,4 +397,23 @@ func (lgh *LgHanglers) UserIsLearnerIn(ctx context.Context, user *models.UserIsL
 	}
 
 	return lgIDs, nil
+}
+
+func (lgh *LgHanglers) GetLearners(ctx context.Context, lgID *models.GetLearners) ([]string, error) {
+	const op = "learning_group.GetLearners"
+
+	log := lgh.log.With(
+		slog.String("op", op),
+		slog.String("learning_group_id", lgID.LgId),
+	)
+
+	log.Info("getting learners")
+
+	learners, err := lgh.groupeProvider.GetLearners(ctx, lgID)
+	if err != nil {
+		log.Error("can't get learners", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return learners, nil
 }

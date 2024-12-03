@@ -22,7 +22,6 @@ func (m *MClient) SaveUser(ctx context.Context, user *models.DBCreateUser) error
 
 	coll := m.client.Database(m.dbname).Collection(CollAuth)
 	user.ID = primitive.NewObjectID().Hex()
-	fmt.Println(user.ID)
 	_, err := coll.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -48,7 +47,6 @@ func (m *MClient) FindUserByEmail(ctx context.Context, email string) (*models.Us
 			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 
-		fmt.Printf("Decode error: %v\n", err)
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -78,7 +76,6 @@ func (m *MClient) FindUserByTgLink(ctx context.Context, tgLink string) (*models.
 			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 
-		fmt.Printf("Decode error: %v\n", err)
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 

@@ -106,3 +106,17 @@ type DBGroupUser struct {
 	Email string `bson:"email"`
 	Name  string `bson:"name"`
 }
+
+type GetLearners struct {
+	LgId string `json:"learning_group_id" validate:"required"`
+}
+
+type DBGetLearners struct {
+	LgId string `bson:"learning_group_id"`
+}
+
+type Spfu struct {
+	LearningGroupID string   `json:"learning_group_id"`
+	UserIDs         []string `json:"user_ids"`
+	CreatedBy       string   `json:"created_by"`
+}

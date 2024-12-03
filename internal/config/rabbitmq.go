@@ -8,6 +8,7 @@ type RabbitMQ struct {
 	ChatID       Chat         `yaml:"chat"`
 	OTP          OTP          `yaml:"otp"`
 	Notification Notification `yaml:"notification"`
+	Spfu         Spfu         `yaml:"spfu"`
 }
 
 type QueueConfig struct {

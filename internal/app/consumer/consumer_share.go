@@ -124,7 +124,6 @@ func (c *ConsumerGetNotifications) handleMessage(ctx context.Context, msg interf
 				CreatedBy: message.CreatedBy,
 			}
 
-			fmt.Println("newMsg", newMsg)
 			msgBody, err := json.Marshal(newMsg)
 			if err != nil {
 				log.Error("Failed to marshal message", slog.Any("err", err))

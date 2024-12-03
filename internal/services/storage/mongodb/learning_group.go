@@ -279,3 +279,25 @@ func (m *MClient) GetUserIsLearnerIn(ctx context.Context, user *models.UserIsLea
 
 	return groupIDs, nil
 }
+
+func (m *MClient) GetLearners(ctx context.Context, lgID *models.GetLearners) ([]string, error) {
+	const op = "storage.mongodb.GetLearners"
+
+	coll := m.client.Database(m.dbname).Collection(CollLearningGroup)
+
+	filter := bson.D{{Key: "_id", Value: lgID.LgId}}
+	var result struct {
+		Learners []string `bson:"learners"`
+	}
+
+	// Выполняем запрос
+	err := coll.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return result.Learners, nil
+}

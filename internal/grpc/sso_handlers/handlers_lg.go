@@ -215,3 +215,16 @@ func (s *serverAPI) IsUserLearnerIn(ctx context.Context, req *ssov1.IsUserLearne
 		LearningGroupIds: lgIDs,
 	}, nil
 }
+
+func (s *serverAPI) GetLearners(ctx context.Context, req *ssov1.GetLearnersRequest) (*ssov1.GetLearnersResponse, error) {
+	learners, err := s.lgh.GetLearners(ctx, &models.GetLearners{
+		LgId: req.GetLearningGroupId(),
+	})
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "bad request")
+	}
+
+	return &ssov1.GetLearnersResponse{
+		Learners: learners,
+	}, nil
+}
