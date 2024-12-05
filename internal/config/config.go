@@ -20,6 +20,7 @@ type GRPCServer struct {
 }
 
 type MongoDB struct {
+	Host     string `yaml:"host"`
 	DbName   string `yaml:"db_name"`
 	UserName string `yaml:"username"`
 	Password string `yaml:"password"`

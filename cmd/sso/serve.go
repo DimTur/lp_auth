@@ -39,9 +39,10 @@ func NewServeCmd() *cobra.Command {
 			}
 
 			uri := fmt.Sprintf(
-				"mongodb://%s:%s@localhost:27017/%s?authSource=admin",
+				"mongodb://%s:%s@%s:27017/%s?authSource=admin",
 				cfg.Storage.UserName,
 				cfg.Storage.Password,
+				cfg.Storage.Host,
 				cfg.Storage.DbName,
 			)
 

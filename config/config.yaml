@@ -3,6 +3,7 @@ grpc_server:
   timeout: "2s"
 mongo_db:
   url: "mongodb://root:example@localhost:27017/db_sso"
+  host: localhost
   db_name: db_sso
   username: root
   password: example
