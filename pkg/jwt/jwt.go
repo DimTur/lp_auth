@@ -49,7 +49,7 @@ func (j *JWTManager) GetRefreshExpiresIn() time.Duration {
 	return j.refreshExpiresIn
 }
 
-func (j *JWTManager) IssueAccessToken(userID int64) (string, error) {
+func (j *JWTManager) IssueAccessToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"iss":  j.issuer,
 		"sub":  userID,
@@ -67,7 +67,7 @@ func (j *JWTManager) IssueAccessToken(userID int64) (string, error) {
 	return signed, nil
 }
 
-func (j *JWTManager) IssueRefreshToken(userID int64) (string, error) {
+func (j *JWTManager) IssueRefreshToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"iss":  j.issuer,
 		"sub":  userID,

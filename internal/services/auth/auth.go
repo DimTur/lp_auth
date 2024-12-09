@@ -2,92 +2,122 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/DimTur/lp_auth/internal/domain/models"
+	"github.com/DimTur/lp_auth/internal/services/rabbitmq"
 	"github.com/DimTur/lp_auth/internal/services/storage"
+	"github.com/DimTur/lp_auth/internal/services/storage/redis"
+	"github.com/DimTur/lp_auth/internal/utils/otp"
 	"github.com/DimTur/lp_auth/pkg/crypto"
-	ssov1 "github.com/DimTur/lp_protos/gen/go/sso"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 )
 
+const (
+	exchangeOTP   = "otp"
+	queueOTP      = "otp"
+	otpRoutingKey = "otp"
+)
+
 type UserSaver interface {
-	SaveUser(
-		ctx context.Context,
-		email string,
-		passHash []byte,
-	) (uid int64, err error)
+	SaveUser(ctx context.Context, user *models.DBCreateUser) error
+	UpdateUserInfo(ctx context.Context, userInfo *models.DBUpdateUserInfo) error
 }
 
 type UserProvider interface {
-	FindUserByEmail(ctx context.Context, email string) (models.User, error)
-	IsAdmin(ctx context.Context, userID int64) (bool, error)
+	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
+	FindUserByTgLink(ctx context.Context, tgLink string) (*models.User, error)
+	GetUserRoles(ctx context.Context, userID string) (*models.UserRoles, error)
+	GetExistChatID(ctx context.Context, userID string) (string, error)
+	GetUsersInfoBatch(ctx context.Context, userIDs []string) ([]models.UserNotification, error)
 }
 
 type TokenProvider interface {
-	SaveRefreshToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error
-	DeleteRefreshToken(ctx context.Context, token string) error
-	FindRefreshToken(ctx context.Context, userID int64) (models.RefreshToken, error)
+	SaveRefreshTokenToDB(ctx context.Context, token *models.CreateRefreshToken) error
 }
 
-type AppProvider interface {
-	FindAppByID(ctx context.Context, appID int64) (models.App, error)
-	AddApp(
-		ctx context.Context,
-		name string,
-		secret string,
-	) (appID int64, err error)
+type TokenRedisStore interface {
+	SaveRefreshTokenToRedis(ctx context.Context, token *redis.CreateRefreshToken) error
+	FindRefreshToken(ctx context.Context, userID string) (*redis.RefreshTokenFromRedis, error)
+}
+
+type OTPRedisStore interface {
+	SaveOTPToRedis(ctx context.Context, otp *redis.CreateOTP) error
+	FindOTPCode(ctx context.Context, code string) (*redis.UserOTPFromRedis, error)
+	DeleteUserOTP(ctx context.Context, code string) error
+}
+
+type RabbitMQQueues interface {
+	Publish(ctx context.Context, exchange, routingKey string, body []byte) error
+	PublishToQueue(ctx context.Context, queueName string, body []byte) error
 }
 
 type JWTManager interface {
-	IssueAccessToken(userID int64) (string, error)
-	IssueRefreshToken(userID int64) (string, error)
+	IssueAccessToken(userID string) (string, error)
+	IssueRefreshToken(userID string) (string, error)
 	VerifyToken(tokenString string) (*jwt.Token, error)
 	GetRefreshExpiresIn() time.Duration
 }
 
 var (
-	ErrInvalidCredentials  = errors.New("invalid credentials")
-	ErrInvalidAppID        = errors.New("invalid app id")
-	ErrUserExists          = errors.New("user already exists")
-	ErrUserNotFound        = errors.New("user not found")
-	ErrAppExists           = errors.New("app already exists")
-	ErrInvalidUserID       = errors.New("invalid user id")
-	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-	ErrInvalidAccessToken  = errors.New("invalid access token")
+	ErrInvalidCredentials     = errors.New("invalid credentials")
+	ErrInvalidAppID           = errors.New("invalid app id")
+	ErrUserExists             = errors.New("user already exists")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrAppExists              = errors.New("app already exists")
+	ErrInvalidUserID          = errors.New("invalid user id")
+	ErrInvalidRefreshToken    = errors.New("invalid refresh token")
+	ErrInvalidAccessToken     = errors.New("invalid access token")
+	ErrAccessTokenGen         = errors.New("generation err access token")
+	ErrRefreshTokenGen        = errors.New("generation err refresh token")
+	ErrRefreshTokenStoreDB    = errors.New("store err refresh token to db")
+	ErrRefreshTokenStoreRedis = errors.New("store err refresh token to redis")
+	ErrOtpNotFound            = errors.New("otp not found")
 )
 
 type AuthHandlers struct {
-	log            *slog.Logger
-	usrSaver       UserSaver
-	usrProvider    UserProvider
-	appProvider    AppProvider
-	tokenProvider  TokenProvider
-	passwordHasher crypto.PasswordHasher
-	jwtManager     JWTManager
+	log             *slog.Logger
+	validator       *validator.Validate
+	usrSaver        UserSaver
+	usrProvider     UserProvider
+	tokenProvider   TokenProvider
+	tokenRedisStore TokenRedisStore
+	otpRedisStore   OTPRedisStore
+	rabbitMQQueues  RabbitMQQueues
+	passwordHasher  crypto.PasswordHasher
+	jwtManager      JWTManager
 }
 
 // New returns a new instance of the Auth service.
 func New(
 	log *slog.Logger,
+	validator *validator.Validate,
 	userSaver UserSaver,
 	userProvider UserProvider,
-	appProvider AppProvider,
 	tokenProvider TokenProvider,
+	tokenRedisStore TokenRedisStore,
+	otpRedisStore OTPRedisStore,
+	rabbitMQQueues RabbitMQQueues,
 	passwordHasher crypto.PasswordHasher,
 	jwtManager JWTManager,
 ) *AuthHandlers {
 	return &AuthHandlers{
-		log:            log,
-		usrSaver:       userSaver,
-		usrProvider:    userProvider,
-		appProvider:    appProvider,
-		tokenProvider:  tokenProvider,
-		passwordHasher: passwordHasher,
-		jwtManager:     jwtManager,
+		log:             log,
+		validator:       validator,
+		usrSaver:        userSaver,
+		usrProvider:     userProvider,
+		tokenProvider:   tokenProvider,
+		tokenRedisStore: tokenRedisStore,
+		otpRedisStore:   otpRedisStore,
+		rabbitMQQueues:  rabbitMQQueues,
+		passwordHasher:  passwordHasher,
+		jwtManager:      jwtManager,
 	}
 }
 
@@ -95,145 +125,251 @@ func New(
 //
 // If user exists, but password is incorrect, returns error.
 // If user doesn't exist, returns error.
-func (a *AuthHandlers) LoginUser(
+func (ah *AuthHandlers) LoginUser(
 	ctx context.Context,
 	email string,
 	password string,
-) (ssov1.LoginUserResponse, error) {
+) (*models.LogInTokens, error) {
 	const op = "auth.LoginUser"
 
-	log := a.log.With(
+	log := ah.log.With(
 		slog.String("op", op),
 		slog.String("username", email),
 	)
 
-	log.Info("attemting to login user")
+	log.Info("attempting to login user")
 
-	user, err := a.usrProvider.FindUserByEmail(ctx, email)
+	user, err := ah.usrProvider.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			a.log.Warn("user not found", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+			log.Warn("user not found", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
 		}
-
-		a.log.Error("failed to get user", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to get user", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if !a.passwordHasher.ComparePassword(user.PassHash, password) {
-		a.log.Info("invalid credentials")
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	if !ah.passwordHasher.ComparePassword(user.PassHash, password) {
+		log.Info("invalid credentials")
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	// app, err := a.appProvider.FindAppByID(ctx, appID)
-	// if err != nil {
-	// 	if errors.Is(err, storage.ErrAppNotFound) {
-	// 		a.log.Warn("app not found", slog.String("err", err.Error()))
-	// 		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
-	// 	}
+	return ah.generateTokens(ctx, log, user.ID)
+}
 
-	// 	a.log.Error("failed to get app", slog.String("err", err.Error()))
-	// 	return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
-	// }
+func (ah *AuthHandlers) LogInViaTg(ctx context.Context, login *models.LogInViaTg) error {
+	const op = "auth.LogInViaTg"
 
-	// Checks refresh token
-	existingRefreshToken, err := a.tokenProvider.FindRefreshToken(ctx, user.ID)
+	log := ah.log.With(
+		slog.String("op", op),
+		slog.String("login", login.Email),
+	)
+
+	// Validation
+	err := ah.validator.Struct(login)
 	if err != nil {
-		if errors.Is(err, storage.ErrTokenNotFound) {
-			a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-		}
-
-		a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
+		log.Warn("invalid parameters", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	// Delete refresh token
-	if existingRefreshToken.Token != "" {
-		err = a.tokenProvider.DeleteRefreshToken(ctx, existingRefreshToken.Token)
+	log.Info("attempting to send otp")
+
+	user, err := ah.usrProvider.FindUserByEmail(ctx, login.Email)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			ah.log.Warn("user not found", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		}
+
+		ah.log.Error("failed to get user", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	chatID, err := ah.usrProvider.GetExistChatID(ctx, user.ID)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			ah.log.Warn("user not found", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		}
+
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if chatID != "" {
+		otp := &redis.CreateOTP{
+			UserID:    user.ID,
+			Code:      otp.RandOTP(),
+			ExpiresAt: time.Now().Add(time.Minute), // TODO: transfer to config
+			Used:      false,
+		}
+
+		if err = ah.otpRedisStore.SaveOTPToRedis(ctx, otp); err != nil {
+			log.Error("failed to save otp to redis", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		chatIDInt, err := strconv.Atoi(chatID)
 		if err != nil {
-			if errors.Is(err, storage.ErrTokenNotFound) {
-				a.log.Warn("refresh token not found", slog.String("err", err.Error()))
-				return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
-			}
+			ah.log.Error("err to convert chat_id to int", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
 
-			a.log.Error("failed to get refresh token", slog.String("err", err.Error()))
-			return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		msgOTP := &rabbitmq.MsgOTP{
+			Otp:    *otp,
+			ChatID: chatIDInt,
+		}
+
+		msgBody, err := json.Marshal(msgOTP)
+		if err != nil {
+			ah.log.Error("err to marshal otp", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		if err = ah.rabbitMQQueues.Publish(ctx, exchangeOTP, otpRoutingKey, msgBody); err != nil {
+			ah.log.Error("err send otp to exchange", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
 		}
 	}
 
-	// Generate new acccess token
-	accessToken, err := a.jwtManager.IssueAccessToken(user.ID)
+	return nil
+}
+
+func (ah *AuthHandlers) CheckOTP(ctx context.Context, checkOTP *models.LoginUserOTP) (*models.LogInTokens, error) {
+	const op = "auth.CheckOTP"
+
+	log := ah.log.With(
+		slog.String("op", op),
+		slog.String("login", checkOTP.Email),
+	)
+
+	log.Info("attempting to login user via OTP")
+
+	user, err := ah.usrProvider.FindUserByEmail(ctx, checkOTP.Email)
 	if err != nil {
-		a.log.Info("failed to generate access token", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+		if errors.Is(err, storage.ErrUserNotFound) {
+			log.Warn("user not found", slog.String("err", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		}
+		log.Error("failed to get user", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	// Generate new refresh token
-	refreshToken, err := a.jwtManager.IssueRefreshToken(user.ID)
-	if err != nil {
-		a.log.Info("failed to generate refresh token", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+	otp, err := ah.otpRedisStore.FindOTPCode(ctx, checkOTP.Code)
+	if err != nil || user.ID != otp.UserID {
+		log.Info("invalid credentials")
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	// Write refresh token to DB
-	err = a.tokenProvider.SaveRefreshToken(ctx, user.ID, refreshToken, time.Now().Add(a.jwtManager.GetRefreshExpiresIn()))
-	if err != nil {
-		a.log.Info("failed to save refresh token to database", slog.String("err", err.Error()))
-		return ssov1.LoginUserResponse{}, fmt.Errorf("%s: %w", op, err)
+	if err := ah.otpRedisStore.DeleteUserOTP(ctx, checkOTP.Code); err != nil {
+		log.Info("invalid credentials")
+		return nil, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	log.Info("user logged in successfully")
-
-	return ssov1.LoginUserResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}, nil
+	return ah.generateTokens(ctx, log, user.ID)
 }
 
 // RegisterNewUser registers new user in the system and returns user ID.
 //
 // If user with given username already exists, returns error.
-func (a *AuthHandlers) RegisterUser(ctx context.Context, email string, password string) (int64, error) {
+func (ah *AuthHandlers) RegisterUser(ctx context.Context, user models.CreateUser) error {
 	const op = "auth.RegisterUser"
 
-	log := a.log.With(
+	log := ah.log.With(
 		slog.String("op", op),
-		slog.String("email", email),
+		slog.String("email", user.Email),
 	)
+
+	// Validation
+	err := ah.validator.Struct(user)
+	if err != nil {
+		log.Warn("invalid parameters", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
 
 	log.Info("registering user")
 
-	passHash, err := a.passwordHasher.HashPassword(password)
+	passHash, err := ah.passwordHasher.HashPassword(user.Password)
 	if err != nil {
 		log.Error("failed to generate password hash", slog.String("err", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
+	newUser := models.DBCreateUser{
+		Email:    user.Email,
+		PassHash: passHash,
+		Name:     user.Name,
+		IsAdmin:  false,
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	}
+	err = ah.usrSaver.SaveUser(ctx, &newUser)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExitsts) {
-			a.log.Warn("user already exists", slog.String("err", err.Error()))
-			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
+			ah.log.Warn("user already exists", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrUserExists)
 		}
 
 		log.Error("failed to save user", slog.String("err", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	return id, nil
+	log.Info("user registered in successfully")
+
+	return nil
 }
 
-func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+// UpdateUserInfo updates user info
+func (ah *AuthHandlers) UpdateUserInfo(ctx context.Context, userInfo *models.UpdateUserInfo) error {
+	const op = "auth.UpdateUserInfo"
+
+	log := ah.log.With(
+		slog.String("op", op),
+		slog.String("user_id", userInfo.ID),
+	)
+
+	// Validation
+	err := ah.validator.Struct(userInfo)
+	if err != nil {
+		log.Warn("invalid parameters", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
+
+	log.Info("updating user_info")
+
+	newUserInfo := &models.DBUpdateUserInfo{
+		ID:      userInfo.ID,
+		Email:   userInfo.Email,
+		Name:    userInfo.Name,
+		TgLink:  userInfo.TgLink,
+		IsAdmin: &userInfo.IsAdmin,
+		Updated: time.Now(),
+	}
+	err = ah.usrSaver.UpdateUserInfo(ctx, newUserInfo)
+	if err != nil {
+		if errors.Is(err, storage.ErrInvalidCredentials) {
+			ah.log.Warn("invalid credentials", slog.String("err", err.Error()))
+			return fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		}
+
+		log.Error("failed to update user info", slog.String("err", err.Error()))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
+func (ah *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
 	const op = "auth.RefreshToken"
 
 	// TODO: find user by refresh token
-	log := a.log.With(
+	log := ah.log.With(
 		slog.String("op", op),
 		// slog.String("user_id", userIDByToken),
 	)
 
 	log.Info("changing access token")
 
-	token, err := a.jwtManager.VerifyToken(refreshToken)
+	token, err := ah.jwtManager.VerifyToken(refreshToken)
 	if err != nil {
 		log.Error("token verification failed: %v", slog.String("err", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
@@ -245,14 +381,13 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidRefreshToken)
 	}
 
-	userIDFloat, ok := claims["sub"].(float64)
+	userID, ok := claims["sub"].(string)
 	if !ok {
 		log.Error("invalid userID claim")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
-	userID := int64(userIDFloat)
 
-	accessToken, err := a.jwtManager.IssueAccessToken(userID)
+	accessToken, err := ah.jwtManager.IssueAccessToken(userID)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -261,67 +396,48 @@ func (a *AuthHandlers) RefreshToken(ctx context.Context, refreshToken string) (s
 }
 
 // IsAdmin checks if user is admin.
-func (a *AuthHandlers) IsAdmin(ctx context.Context, userID int64) (bool, error) {
+func (ah *AuthHandlers) IsAdmin(ctx context.Context, userID string) (bool, error) {
 	const op = "auth.IsAdmin"
 
-	log := a.log.With(
+	log := ah.log.With(
 		slog.String("op", op),
-		slog.Int64("user_id", userID),
+		slog.String("user_id", userID),
 	)
 
-	log.Info("registering user")
+	log.Info("check user is admin")
 
-	isAdmin, err := a.usrProvider.IsAdmin(ctx, userID)
+	role, err := ah.usrProvider.GetUserRoles(ctx, userID)
 	if err != nil {
-		if errors.Is(err, storage.ErrAppNotFound) {
-			a.log.Warn("user not found", slog.String("err", err.Error()))
-			return false, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+		if errors.Is(err, storage.ErrUserNotFound) {
+			ah.log.Warn("user not found", slog.String("err", err.Error()))
+			return false, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
 
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("checked if user is admin", slog.Bool("is_admin", isAdmin))
-
-	return isAdmin, nil
-}
-
-func (a *AuthHandlers) AddApp(ctx context.Context, name string, secret string) (int64, error) {
-	const op = "auth.RegisterUser"
-
-	log := a.log.With(
-		slog.String("op", op),
-		slog.String("name", name),
-	)
-
-	log.Info("registering app")
-
-	id, err := a.appProvider.AddApp(ctx, name, secret)
-	if err != nil {
-		if errors.Is(err, storage.ErrAppExists) {
-			a.log.Warn("app already exists", slog.String("err", err.Error()))
-			return 0, fmt.Errorf("%s: %w", op, ErrAppExists)
-		}
-
-		log.Error("failed to save app", slog.String("err", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+	if !role.IsAdmin {
+		log.Info("checked user is admin", slog.Bool("is_admin", false))
+		return false, nil
 	}
 
-	return id, nil
+	log.Info("checked user is admin", slog.Bool("is_admin", true))
+
+	return true, nil
 }
 
-func (a *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*ssov1.AuthCheckResponse, error) {
+func (ah *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*models.AuthCheck, error) {
 	const op = "auth.AuthCheck"
 
 	// TODO: find user by access token
-	log := a.log.With(
+	log := ah.log.With(
 		slog.String("op", op),
 		// slog.String("user_id", userIDByToken),
 	)
 
 	log.Info("verifying access token")
 
-	token, err := a.jwtManager.VerifyToken(accessToken)
+	token, err := ah.jwtManager.VerifyToken(accessToken)
 	if err != nil {
 		log.Error("token verification failed: %v", slog.String("err", err.Error()))
 		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
@@ -333,14 +449,85 @@ func (a *AuthHandlers) AuthCheck(ctx context.Context, accessToken string) (*ssov
 		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
 	}
 
-	userID, ok := claims["sub"].(float64)
+	userID, ok := claims["sub"].(string)
 	if !ok {
 		log.Error("invalid subject claim")
 		return nil, fmt.Errorf("%s: %w", op, ErrInvalidAccessToken)
 	}
 
-	return &ssov1.AuthCheckResponse{
+	return &models.AuthCheck{
 		IsValid: token.Valid,
-		UserId:  int64(userID),
+		UserId:  userID,
+	}, nil
+}
+
+func (ah *AuthHandlers) generateTokens(
+	ctx context.Context,
+	log *slog.Logger,
+	userID string,
+) (*models.LogInTokens, error) {
+	// Checks refresh-token exists
+	existingRefreshToken, err := ah.tokenRedisStore.FindRefreshToken(ctx, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrNoTokensFound):
+			log.Info("refresh token not found", slog.String("err", err.Error()))
+		case errors.Is(err, storage.ErrUserIdConversion):
+			log.Warn("invalid user id", slog.String("err", err.Error()))
+		default:
+			log.Error("failed to get refresh token", slog.String("err", err.Error()))
+		}
+	}
+
+	// Generate new access-token
+	accessToken, err := ah.jwtManager.IssueAccessToken(userID)
+	if err != nil {
+		log.Info("failed to generate access token", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%w", ErrAccessTokenGen)
+	}
+
+	// If refresh-token exists, return it
+	if existingRefreshToken != nil {
+		log.Info("refresh token found in redis")
+		return &models.LogInTokens{
+			AccessToken:  accessToken,
+			RefreshToken: existingRefreshToken.Token,
+		}, nil
+	}
+
+	// Generate new refresh-token
+	refreshToken, err := ah.jwtManager.IssueRefreshToken(userID)
+	if err != nil {
+		log.Info("failed to generate refresh token", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%w", ErrRefreshTokenGen)
+	}
+
+	expireRefresh := time.Now().Add(ah.jwtManager.GetRefreshExpiresIn())
+
+	// Store refresh-token to DB
+	refToken := &models.CreateRefreshToken{
+		UserID:    userID,
+		Token:     refreshToken,
+		ExpiresAt: expireRefresh,
+	}
+	if err := ah.tokenProvider.SaveRefreshTokenToDB(ctx, refToken); err != nil {
+		log.Error("failed to save refresh token to database", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%w", ErrRefreshTokenStoreDB)
+	}
+
+	// Store refresh-token to Redis
+	refTokenToRedis := &redis.CreateRefreshToken{
+		UserID:    userID,
+		Token:     refreshToken,
+		ExpiresAt: expireRefresh,
+	}
+	if err := ah.tokenRedisStore.SaveRefreshTokenToRedis(ctx, refTokenToRedis); err != nil {
+		log.Error("failed to save refresh token to redis", slog.String("err", err.Error()))
+		return nil, fmt.Errorf("%w", ErrRefreshTokenStoreRedis)
+	}
+
+	return &models.LogInTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }

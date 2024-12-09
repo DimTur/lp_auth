@@ -1,8 +1,81 @@
 grpc_server:
   address: ":8081"
   timeout: "2s"
-storage:
-  path: "./storage/sso.db"
+mongo_db:
+  url: "mongodb://root:example@localhost:27017/db_sso"
+  host: localhost
+  db_name: db_sso
+  username: root
+  password: example
+rabbit_mq:
+  username: guest
+  password: guest
+  host: localhost
+  port: 5672
+  chat:
+    chat_id_queue:
+      name: chat_id
+    chat_consumer:
+      queue: chat_id
+      consumer: ""
+      autoAck: false
+      exclusive: false
+      noLocal: false
+      noWait: false
+      args:
+        x-consumer-timeout: 60000
+        x-consumer-prefetch-count: 5
+  notification:
+    notification_queue:
+      name: notification
+    notification_exchange:
+      name: share
+    notification_consumer:
+      queue: notification_to_auth
+      consumer: ""
+      autoAck: false
+      exclusive: false
+      noLocal: false
+      noWait: false
+      args:
+        x-consumer-timeout: 60000
+        x-consumer-prefetch-count: 5
+    notification_routing_key: notification
+  otp:
+    otp_exchange:
+      name: otp
+      kind: fanout
+      durable: false
+      auto_deleted: false
+      internal: false
+      no_wait: true
+      args:
+        alternate_exchange: alternate_exchange_otp
+    otp_queue:
+      name: otp
+      durable: false
+      auto_deleted: false
+      exclusive: false
+      no_wait: true
+      args:
+        x_message_ttl: 60000
+    otp_routing_key: otp
+  spfu:
+    spfu_exchange:
+      name: share
+    spfu_queue:
+      name: spfu
+      durable: true
+      auto_deleted: false
+      exclusive: false
+      no_wait: false
+    spfu_routing_key: spfu
+redis:
+  host: localhost
+  port: 6379
+  token_db: 0
+  otp_db: 1
+  password: ""
 jwt:
   issuer: auth-service
   access_expires_in: 10h
